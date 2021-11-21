@@ -5,12 +5,13 @@ description = ""
 authors = ["Your Name <you@example.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = "^3.9"
 Pillow = "^8.4.0"
 future = "^0.18.2"
 matplotlib = "^3.5.0"
 tensorboard = "^2.7.0"
 PySuperTuxKart = "^1.1.2"
+ray = "^1.8.0"
 
 [tool.poetry.dev-dependencies]
 black = "^21.11b0"
