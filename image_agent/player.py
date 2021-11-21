@@ -1,3 +1,4 @@
+from .models import load_model
 
 class Team:
     agent_type = 'image'
@@ -9,6 +10,7 @@ class Team:
         """
         self.team = None
         self.num_players = None
+        self.model = load_model()
 
     def new_match(self, team: int, num_players: int) -> list:
         """
