@@ -1,11 +1,21 @@
+import json
+import numpy as np
+
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
+
 
 class Team:
     agent_type = 'state'
 
     def __init__(self):
         """
-          TODO: Load your agent here. Load network parameters, and other parts of our model
-          We will call this function with default arguments only
+        TODO: Load your agent here. Load network parameters, and other parts of our model
+        We will call this function with default arguments only
         """
         self.team = None
         self.num_players = None
@@ -24,6 +34,7 @@ class Team:
            TODO: feel free to edit or delete any of the code below
         """
         self.team, self.num_players = team, num_players
+        self.step = 0
         return ['tux'] * num_players
 
     def act(self, player_state, opponent_state, soccer_state):
@@ -58,4 +69,14 @@ class Team:
                  steer:        float -1..1 steering angle
         """
         # TODO: Change me. I'm just cruising straight
+        states = {
+            'player_state': player_state,
+            'opponent_state': opponent_state,
+            'soccer_state': soccer_state,
+        }
+
+        with open(f'data/dumb_state_agent/{self.step}.json', 'w') as fh:
+            json.dump(states, fh, cls=NumpyEncoder)
+
+        self.step += 1
         return [dict(acceleration=1, steer=0)] * self.num_players
