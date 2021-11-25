@@ -1,3 +1,4 @@
+import numpy as np
 
 class Team:
     agent_type = 'state'
@@ -7,8 +8,40 @@ class Team:
           TODO: Load your agent here. Load network parameters, and other parts of our model
           We will call this function with default arguments only
         """
+        # creating vars to store team color, number of players, goal_point
         self.team = None
         self.num_players = None
+        self.goal_line = None
+
+    def _get_quadrant(self, coords1, coords2):
+        """
+            Returns the quadrant of coords1 wrt coords2
+            Useful for determining the way the kart is facing
+             (-,-)
+                                     |
+                                     |
+                     Q2              |           Q1
+                                     |
+             ------------------------O--------------------------
+                                     |
+                                     |
+                     Q3              |           Q4
+                                     |
+                                     |
+                                                            (+,+)
+
+            :param coords1: List of coords [x, y(not used), z]
+            :param coords2: List of coords that acts as the anchor [x, y(not used), z]
+            :return: Int specifying the quadrant the coords resides in
+        """
+        if(coords1[0] < coords2[0] and coords1[2] < coords2[2]):
+            return 2
+        elif(coords1[0] < coords2[0] and coords1[2] > coords2[2]):
+            return 3
+        elif(coords1[0] > coords2[0] and coords1[2] > coords2[2]):
+            return 4
+        else:
+            return 1
 
     def new_match(self, team: int, num_players: int) -> list:
         """
@@ -23,8 +56,14 @@ class Team:
         """
            TODO: feel free to edit or delete any of the code below
         """
+        # set our class vars and return an array of kart names == num_players
         self.team, self.num_players = team, num_players
-        return ['tux'] * num_players
+        print("TEAM:", team)
+        if self.team == 0:
+            self.goal_line = [0, 0,  80]
+        else:
+            self.goal_line = [0, 0, -80]
+        return ['puffy'] * num_players
 
     def act(self, player_state, opponent_state, soccer_state):
         """
@@ -57,5 +96,60 @@ class Team:
                  rescue:       bool (optional. no clue where you will end up though.)
                  steer:        float -1..1 steering angle
         """
-        # TODO: Change me. I'm just cruising straight
-        return [dict(acceleration=1, steer=0)] * self.num_players
+        #####################
+        #   Attacker Code   #
+        #####################
+        #   ball in front?
+        #       move ball to goal => aim_point = (0,78) or (0,-78)
+        #   else
+        #       move to pos with ball in front => aim_point = ball position
+        dict1 = {'acceleration':0.0, 'steer':0.0, 'brake': False, 'fire': False}
+
+        # calculate euclidean distance between front of kart and ball
+        attacker_loc = player_state[0]['kart']['location']
+        attacker_front = player_state[0]['kart']['front']
+        attacker_vel = player_state[0]['kart']['velocity']
+        aim_point = soccer_state['ball']['location']
+        kart_q = self._get_quadrant(attacker_front, attacker_loc)
+        ball_q = self._get_quadrant(aim_point, attacker_loc)
+
+        # print("KART AND PUCK Q's:", kart_q, ball_q, (attacker_front[0], attacker_front[2])
+
+
+        # 1. first off, which way are we facing? are we facing the puck?
+        # ans: orient ourselves
+        print("ORIENTATION:", kart_q, ball_q, (attacker_front[0], attacker_front[2]), (aim_point[0], aim_point[2]))
+        if kart_q == 1 and ball_q == 3 or kart_q == 3 and ball_q == 1:
+            # ball is behind us. turn around
+            print("TURNING AROUND")
+            dict1['brake'] = True
+            dict1['steer'] = -1.0
+        elif kart_q == 2 and ball_q == 4 or kart_q == 4 and ball_q == 2:
+            # ball is behind us. turn around
+            print("TURNING AROUND")
+            dict1['brake'] = True
+            dict1['steer'] = 1.0
+        elif kart_q == 1 and ball_q == 2 or kart_q == 4 and ball_q == 3:
+            print("TURNING RIGHT")
+            # dict1['acceleration'] = 1.0
+            dict1['steer'] = -1.0
+        elif kart_q == 2 and ball_q == 1 or kart_q == 3 and ball_q == 4:
+            print("TURNING LEFT")
+            # dict1['acceleration'] = 1.0
+            dict1['steer'] = 1.0
+        # 2. now we're oriented and facing the ball. how do we move towards it?
+        # ans: use coords to steer towards ball
+        else:
+            dict1['acceleration'] = 0.8
+            # is the ball on the left or the right?
+            if aim_point[0] - attacker_front[0] > 0:
+                print("MOVING TOWARDS BALL RIGHT")
+                dict1['steer'] = 0.8
+            elif aim_point[0] - attacker_front[0] < 0:
+                print("MOVING TOWARDS BALL LEFT")
+                dict1['steer'] = 0.8
+
+
+        # in control of the puck. now aim it towards the goal
+
+        return [dict1, dict(acceleration=1, steer=0)]
