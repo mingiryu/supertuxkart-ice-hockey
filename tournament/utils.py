@@ -124,4 +124,3 @@ def load_recording(recording):
                 yield load(f)
             except EOFError:
                 break
-

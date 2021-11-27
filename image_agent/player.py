@@ -1,3 +1,15 @@
+import pickle
+
+
+# Objective1: Build a planner model to create aim points from images stored in pkl file
+#             Train planner model(s) using data in pkl file. We can pick and choose what to train for (attker -> ball, defender -> enemy karts)
+#                   - sub objective: attacker to focus on ball (easy)
+#                   - sub objective: defender attack enemy kart, protect goal, pickup items (hard)
+# Objective2: Build a controller to take an action (accel, steer, fire)
+#           Eg attacker flow:
+#           - Goal 1: move to the ball
+#           - Goal 2: if ball in range (|dist from ball to kart| < 3)
+#                           move and aim towards goal
 
 class Team:
     agent_type = 'image'
@@ -9,6 +21,7 @@ class Team:
         """
         self.team = None
         self.num_players = None
+        self.goal = None
 
     def new_match(self, team: int, num_players: int) -> list:
         """
@@ -23,7 +36,17 @@ class Team:
         """
            TODO: feel free to edit or delete any of the code below
         """
+        # objects = []
+        # with (open('image_agent/data.pkl','rb')) as openfile:
+        #     while True:
+        #         try:
+        #             objects.append(pickle.load(openfile))
+        #         except EOFError:
+        #             break
+        # print(len(objects))
         self.team, self.num_players = team, num_players
+        self.goal = [0, 0, 64.5] if team % 2 == 0 else [0, 0, -64.5]
+
         return ['tux'] * num_players
 
     def act(self, player_state, player_image):

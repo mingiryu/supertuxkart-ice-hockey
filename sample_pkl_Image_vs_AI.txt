@@ -184,11 +184,12 @@
 
         },
         {
-            'acceleration': 1, 
+            'acceleration': 1,
             'steer': 0
         },
         {
 
         }
-    ]
+    ],
+    'team1_images': [[[[12,45,6],...]]]
 }

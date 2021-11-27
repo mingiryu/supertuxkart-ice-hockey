@@ -278,8 +278,8 @@ if __name__ == '__main__':
     parser.add_argument('-j', '--parallel', type=int, help="How many parallel process to use?")
     parser.add_argument('--ball_location', default=[0, 0], type=float, nargs=2, help="Initial xy location of ball")
     parser.add_argument('--ball_velocity', default=[0, 0], type=float, nargs=2, help="Initial xy velocity of ball")
-    parser.add_argument('team1', help="Python module name or `AI` for AI players.")
-    parser.add_argument('team2', help="Python module name or `AI` for AI players.")
+    parser.add_argument('--team1', default="image_agent", help="Python module name or `AI` for AI players.")
+    parser.add_argument('--team2', default="AI", help="Python module name or `AI` for AI players.")
     args = parser.parse_args()
 
     logging.basicConfig(level=environ.get('LOGLEVEL', 'WARNING').upper())
@@ -295,10 +295,10 @@ if __name__ == '__main__':
             recorder = recorder & utils.VideoRecorder(args.record_video)
 
         if args.record_state:
-            recorder = recorder & utils.StateRecorder(args.record_state)
+            recorder = recorder & utils.StateRecorder(args.record_state, True)
 
         # Start the match
-        match = Match(use_graphics=team1.agent_type == 'image' or team2.agent_type == 'image')
+        match = Match(use_graphics=True)
         try:
             result = match.run(team1, team2, args.num_players, args.num_frames, max_score=args.max_score,
                                initial_ball_location=args.ball_location, initial_ball_velocity=args.ball_velocity,
