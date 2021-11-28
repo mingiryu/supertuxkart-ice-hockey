@@ -9,7 +9,7 @@ from . import dense_transforms
 
 RESCUE_TIMEOUT = 30
 TRACK_OFFSET = 15
-DATASET_PATH = 'training_data'
+DATASET_PATH = '2_class_data'
 
 
 class SuperTuxDataset(Dataset):
@@ -103,11 +103,9 @@ class PyTux:
 
         state = pystk.WorldState()
         track = pystk.Track()
-        print(track, state)
 
         last_rescue = 0
 
-        print("VERBOSE:", verbose)
         if verbose:
             import matplotlib.pyplot as plt
             fig, ax = plt.subplots(1, 1)
@@ -125,15 +123,31 @@ class PyTux:
             view = np.array(state.players[0].camera.view).T
 
             # aim_point_world = self._point_on_track(kart.distance_down_track+TRACK_OFFSET, track)
+
+            # aim_point_image for circle on screen for puck
             aim_point_world = state.soccer.ball.location
             aim_point_image = self._to_image(aim_point_world, proj, view)
-            if data_callback is not None:
-                print("COLLECTING IMG:", aim_point_image)
-                data_callback(t, np.array(self.k.render_data[0].image), aim_point_image)
 
-            # if planner:
-            #     image = np.array(self.k.render_data[0].image)
-            #     aim_point_image = planner(TF.to_tensor(image)[None]).squeeze(0).cpu().detach().numpy()
+            # aim_point_image for circle on screen for enemy kart
+            aim_point_world1 = state.players[1].kart.location
+            aim_point_image1 = self._to_image(aim_point_world1, proj, view)
+
+            shifted = self.k.render_data[0].instance >> pystk.object_type_shift
+            exists = False
+            if any(8 in x for x in shifted):
+                exists = True
+
+            if not exists:
+                val = 1.0 if aim_point_image[0] > 0 else -1.0
+                aim_point_image = np.array([val, 0])
+
+            if data_callback is not None:
+                # print("COLLECTING IMG:", aim_point_image)
+                data_callback(t, np.array(self.k.render_data[0].image), [aim_point_image, aim_point_image1])
+
+            if planner:
+                image = np.array(self.k.render_data[0].image)
+                aim_point_image = planner(TF.to_tensor(image)[None]).squeeze(0).cpu().detach().numpy()
 
             current_vel = np.linalg.norm(kart.velocity)
             action = controller(aim_point_image, current_vel)
@@ -141,13 +155,15 @@ class PyTux:
             if current_vel < 1.0 and t - last_rescue > RESCUE_TIMEOUT:
                 last_rescue = t
                 action.rescue = True
-            print("VERBOSE:", verbose)
+
             if verbose:
                 ax.clear()
                 ax.imshow(self.k.render_data[0].image)
+                # ax.imshow(self.k.render_data[0].instance)
                 WH2 = np.array([self.config.screen_width, self.config.screen_height]) / 2
                 ax.add_artist(plt.Circle(WH2*(1+self._to_image(kart.location, proj, view)), 2, ec='b', fill=False, lw=1.5))
-                ax.add_artist(plt.Circle(WH2*(1+self._to_image(aim_point_world, proj, view)), 2, ec='r', fill=False, lw=1.5))
+                ax.add_artist(plt.Circle(WH2*(1+aim_point_image), 2, ec='r', fill=False, lw=1.5))
+                # ax.add_artist(plt.Circle(WH2*(1+aim_point_image1), 2, ec='yellow', fill=False, lw=1.5))
                 if planner:
                     ap = aim_point_world
                     ax.add_artist(plt.Circle(WH2*(1+aim_point_image), 2, ec='g', fill=False, lw=1.5))
@@ -196,7 +212,7 @@ if __name__ == '__main__':
     # extract image from pkl file
     # TODO: Send image info to PyTux and generate aim_points using _to_image()
     for track in args.track:
-        n, images_per_game = 0, 1000
+        n, images_per_game = 0, args.n_images
         aim_noise, vel_noise = 0, 0
 
         def collect(_, im, pt):
@@ -205,10 +221,13 @@ if __name__ == '__main__':
             global n
             id = n if n < images_per_game else np.random.randint(0, n + 1)
             if id < images_per_game:
-                fn = path.join(args.output, 'game_%05d' % id)
+                fn = path.join(args.output, track + '_%05d' % id)
                 Image.fromarray(im).save(fn + '.png')
                 with open(fn + '.csv', 'w') as f:
-                    f.write('%0.1f,%0.1f' % tuple(pt))
+                    for i in range(len(pt)):
+                        f.write('%0.1f,%0.1f' % tuple(pt[i]))
+                        if i != len(pt)-1:
+                            f.write(',')
             n += 1
 
         while n < args.steps_per_game:
@@ -218,27 +237,4 @@ if __name__ == '__main__':
             # Add noise after the first round
             aim_noise, vel_noise = args.aim_noise, args.vel_noise
 
-    # for track in args.track:
-    #     n, images_per_track = 0, args.n_images // len(args.track)
-    #     aim_noise, vel_noise = 0, 0
-    #
-    #
-    #     def collect(_, im, pt):
-    #         from PIL import Image
-    #         from os import path
-    #         global n
-    #         id = n if n < images_per_track else np.random.randint(0, n + 1)
-    #         if id < images_per_track:
-    #             fn = path.join(args.output, track + '_%05d' % id)
-    #             Image.fromarray(im).save(fn + '.png')
-    #             with open(fn + '.csv', 'w') as f:
-    #                 f.write('%0.1f,%0.1f' % tuple(pt))
-    #         n += 1
-    #
-    #
-    #     while n < args.steps_per_track:
-    #         steps, how_far = pytux.rollout(track, noisy_control, max_frames=1000, verbose=args.verbose, data_callback=collect)
-    #         print(steps, how_far)
-    #         # Add noise after the first round
-    #         aim_noise, vel_noise = args.aim_noise, args.vel_noise
     pytux.close()

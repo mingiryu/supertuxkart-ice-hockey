@@ -30,7 +30,7 @@ def train(args):
     batch_size = int(args.batch)
     num_workers = int(args.workers)
     lr = float(args.learn)
-    train_path = 'training_data'
+    train_path = 'test_data'
 
     # hooking up device
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -60,6 +60,7 @@ def train(args):
     for epoch in range(epochs):
         model.train()
         for data, label in train_data:
+            # print(label)
             data, label = data.to(device), label.to(device)
 
             # generate output, calculate loss gradient
