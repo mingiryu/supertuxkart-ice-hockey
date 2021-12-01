@@ -66,6 +66,7 @@ class TeamRunner:
             else:
                 self._team = assignment.Team()
         except Exception as e:
+            print("ERROR:", e)
             self._error = 'Failed to load submission: {}'.format(str(e))
         self.agent_type = self._team.agent_type
 
@@ -217,9 +218,12 @@ class Match:
             team2_state = [to_native(p) for p in state.players[1::2]]
             soccer_state = to_native(state.soccer)
             team1_images = team2_images = None
+            team1_instances = team2_instances = None
             if self._use_graphics:
                 team1_images = [np.array(race.render_data[i].image) for i in range(0, len(race.render_data), 2)]
                 team2_images = [np.array(race.render_data[i].image) for i in range(1, len(race.render_data), 2)]
+                team1_instances = [np.array(race.render_data[i].instance >> self._pystk.object_type_shift) for i in range(0, len(race.render_data), 2)]
+                team2_instances = [np.array(race.render_data[i].instance >> self._pystk.object_type_shift) for i in range(1, len(race.render_data), 2)]
 
             # Have each team produce actions (in parallel)
             if t1_type == 'image':
@@ -248,7 +252,8 @@ class Match:
 
             if record_fn:
                 self._r(record_fn)(team1_state, team2_state, soccer_state=soccer_state, actions=actions,
-                                   team1_images=team1_images, team2_images=team2_images)
+                                   team1_images=team1_images, team2_images=team2_images,
+                                   team1_instances=team1_instances, team2_instances=team2_instances)
 
             logging.debug('  race.step  [score = {}]'.format(state.soccer.score))
             if (not race.step([self._pystk.Action(**a) for a in actions]) and num_player) or sum(state.soccer.score) >= max_score:
@@ -278,8 +283,8 @@ if __name__ == '__main__':
     parser.add_argument('-j', '--parallel', type=int, help="How many parallel process to use?")
     parser.add_argument('--ball_location', default=[0, 0], type=float, nargs=2, help="Initial xy location of ball")
     parser.add_argument('--ball_velocity', default=[0, 0], type=float, nargs=2, help="Initial xy velocity of ball")
-    parser.add_argument('--team1', default="image_agent", help="Python module name or `AI` for AI players.")
-    parser.add_argument('--team2', default="AI", help="Python module name or `AI` for AI players.")
+    parser.add_argument('team1', help="Python module name or `AI` for AI players.")
+    parser.add_argument('team2', help="Python module name or `AI` for AI players.")
     args = parser.parse_args()
 
     logging.basicConfig(level=environ.get('LOGLEVEL', 'WARNING').upper())
@@ -304,6 +309,7 @@ if __name__ == '__main__':
                                initial_ball_location=args.ball_location, initial_ball_velocity=args.ball_velocity,
                                record_fn=recorder)
         except MatchException as e:
+            print("ERROR:", e)
             print('Match failed', e.score)
             print(' T1:', e.msg1)
             print(' T2:', e.msg2)

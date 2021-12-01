@@ -1,31 +1,14 @@
 import pystk
 
+backup_counter = 0
+frame = 0
 
-def control(aim_point, current_vel):
-    """
-    Set the Action for the low-level controller
-    :param aim_point: Aim point, in screen coordinate frame [-1..1]
-    :param current_vel: Current velocity of the kart
-    :return: a pystk.Action (set acceleration, brake, steer, drift)
-    """
+def control(aim_point, current_vel, steer_gain=3, skid_thresh=0.5, target_vel=20, puck_in_view=None):
+    import numpy as np
     action = pystk.Action()
-
-    """
-    Your code here
-    Hint: Use action.acceleration (0..1) to change the velocity. Try targeting a target_velocity (e.g. 20).
-    Hint: Use action.brake to True/False to brake (optionally)
-    Hint: Use action.steer to turn the kart towards the aim_point, clip the steer angle to -1..1
-    Hint: You may want to use action.drift=True for wide turns (it will turn faster)
-    """
-    if aim_point[0] < -0.1:
-        action.steer = -0.8
-        action.brake = True
-    elif aim_point[0] > 0.1:
-        action.steer = 0.8
-        action.brake = True
-    else:
-        action.steer = 0.0
-        action.brake = False
+    global backup_counter
+    global frame
+    # print(aim_point)
 
     # if we have nitro and the aim_point is nearly straight ahead
     if aim_point[0] < 0.05 and aim_point[0] > -0.05:
@@ -37,6 +20,34 @@ def control(aim_point, current_vel):
         action.acceleration = 0.1
     else:
         action.acceleration = 1.0 if current_vel < 30.0 else 0.0
+
+    steer_angle = steer_gain * aim_point[0]
+    # Compute steering
+    action.steer = np.clip(steer_angle * steer_gain, -1, 1)
+
+    if aim_point[0] < -0.1 and aim_point[1] > 0.7:
+        print("TURNING LEFT")
+        action.steer = -1 * action.steer
+        action.acceleration = 0.0
+        action.brake = True
+    elif aim_point[0] > 0.1 and aim_point[1] > 0.7:
+        print("TURNING RIGHT")
+        action.steer = -1 * action.steer
+        action.acceleration = 0.0
+        action.brake = True
+
+    print(current_vel)
+    # might be stuck. back up
+    if current_vel < 0.1 and frame > 5:
+        backup_counter = 5
+
+    if backup_counter > 0:
+        action.brake = True
+        action.acceleration = 0.0
+        backup_counter -= 1
+
+
+    frame += 1
     return action
 
 

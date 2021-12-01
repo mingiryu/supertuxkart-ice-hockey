@@ -1,6 +1,7 @@
 import numpy as np
 import pystk
 import pickle
+from torchvision.transforms import functional as F
 
 
 from torch.utils.data import Dataset, DataLoader
@@ -9,19 +10,152 @@ from . import dense_transforms
 
 RESCUE_TIMEOUT = 30
 TRACK_OFFSET = 15
-DATASET_PATH = '2_class_data'
+DATASET_PATH = 'test_data'
+
+def _to_image(x, proj, view):
+    p = proj @ view @ np.array(list(x) + [1])
+    return np.clip(np.array([p[0] / p[-1], -p[1] / p[-1]]), -1, 1)
 
 
 class SuperTuxDataset(Dataset):
-    def __init__(self, dataset_path=DATASET_PATH, transform=dense_transforms.ToTensor()):
+    # model = 0 is a planner, model = 1 is a detector
+    def __init__(self, dataset_path=DATASET_PATH, transform=dense_transforms.ToTensor(), model=0):
         from PIL import Image
         from glob import glob
         from os import path
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(2, 2)
         self.data = []
-        for f in glob(path.join(dataset_path, '*.csv')):
-            i = Image.open(f.replace('.csv', '.png'))
-            i.load()
-            self.data.append((i, np.loadtxt(f, dtype=np.float32, delimiter=',')))
+        with (open(dataset_path, "rb")) as openfile:
+            while True:
+                try:
+                    d = pickle.load(openfile)
+
+                    # gathering necessary info
+                    t1_imgs = d['team1_images']
+                    t2_imgs = d['team2_images']
+                    puck = d['soccer_state']['ball']['location']
+                    k1 = d['team1_state'][0]
+                    k2 = d['team1_state'][1]
+                    k3 = d['team2_state'][0]
+                    k4 = d['team2_state'][1]
+
+                    # gathering puck positions for all karts
+                    puck1 = _to_image(puck, np.array(k1['camera']['projection']).T, np.array(k1['camera']['view']).T)
+                    puck2 = _to_image(puck, np.array(k2['camera']['projection']).T, np.array(k2['camera']['view']).T)
+                    puck3 = _to_image(puck, np.array(k3['camera']['projection']).T, np.array(k3['camera']['view']).T)
+                    puck4 = _to_image(puck, np.array(k4['camera']['projection']).T, np.array(k4['camera']['view']).T)
+
+                    # gathering enemy kart locations for all karts
+                    ek1_1 = _to_image(k3['kart']['location'], np.array(k1['camera']['projection']).T, np.array(k1['camera']['view']).T) # (x,y) in the view of K1
+                    ek2_1 = _to_image(k4['kart']['location'], np.array(k1['camera']['projection']).T, np.array(k1['camera']['view']).T) # (x,y) in the view of K1
+
+                    # gathering images for all karts
+                    image1 =  Image.fromarray(t1_imgs[0])
+                    image2 =  Image.fromarray(t1_imgs[1])
+                    image3 =  Image.fromarray(t2_imgs[0])
+                    image4 =  Image.fromarray(t2_imgs[1])
+
+                    # gathering instances for all karts
+                    instance1 = d['team1_instances'][0]
+                    instance2 = d['team1_instances'][1]
+                    instance3 = d['team2_instances'][0]
+                    instance4 = d['team2_instances'][1]
+
+                    # checking existence of puck
+                    exist1 = False
+                    exist2 = False
+                    exist3 = False
+                    exist4 = False
+                    if any(8 in x for x in instance1):
+                        exist1 = True
+                    if any(8 in x for x in instance2):
+                        exist2 = True
+                    if any(8 in x for x in instance3):
+                        exist3 = True
+                    if any(8 in x for x in instance4):
+                        exist4 = True
+
+                    # if puck doesn't exist on screen, set the aim point behind us.
+                    # controller should handle this case
+                    if not exist1:
+                        val = 0.8 if puck1[0] > 0 else -0.8
+                        puck1 = np.array([val, 1])
+                    if not exist2:
+                        val = 0.8 if puck2[0] > 0 else -0.8
+                        puck2 = np.array([val, 1])
+                    if not exist3:
+                        val = 0.8 if puck3[0] > 0 else -0.8
+                        puck3 = np.array([val, 1])
+                    if not exist4:
+                        val = 0.8 if puck4[0] > 0 else -0.8
+                        puck4 = np.array([val, 1])
+
+                    # building labels for detector
+                    # 1 when pixel is 8 (projectile/puck) else 0
+                    instance1[instance1 != 8] = 0
+                    instance2[instance2 != 8] = 0
+                    instance3[instance3 != 8] = 0
+                    instance4[instance4 != 8] = 0
+
+                    # logging help
+                    counter = 0
+                    WH2 = np.array([400, 300]) / 2
+                    for row in ax:
+                        for index, col in enumerate(row):
+                            # print(counter, index)
+                            col.clear()
+                            if counter == 0 and index == 0:
+                                # col.imshow(t1_imgs[0])
+                                col.imshow(instance1)
+                                col.add_artist(plt.Circle(WH2*(1+_to_image(k1['kart']['location'], np.array(k1['camera']['projection']).T, np.array(k1['camera']['view']).T)), 2, ec='b', fill=False, lw=1.5))
+                                col.add_artist(plt.Circle(WH2*(1+puck1), 2, ec='r', fill=False, lw=1.5))
+                            if counter == 0 and index == 1:
+                                # col.imshow(t2_imgs[0])
+                                col.imshow(instance3)
+                                col.add_artist(plt.Circle(WH2*(1+_to_image(k3['kart']['location'], np.array(k3['camera']['projection']).T, np.array(k3['camera']['view']).T)), 2, ec='b', fill=False, lw=1.5))
+                                col.add_artist(plt.Circle(WH2*(1+puck3), 2, ec='r', fill=False, lw=1.5))
+                            if counter == 1 and index == 0:
+                                # col.imshow(t1_imgs[1])
+                                col.imshow(instance2)
+                                col.add_artist(plt.Circle(WH2*(1+_to_image(k2['kart']['location'], np.array(k2['camera']['projection']).T, np.array(k2['camera']['view']).T)), 2, ec='b', fill=False, lw=1.5))
+                                col.add_artist(plt.Circle(WH2*(1+puck2), 2, ec='r', fill=False, lw=1.5))
+                            if counter == 1 and index == 1:
+                                # col.imshow(t2_imgs[1])
+                                col.imshow(instance4)
+                                col.add_artist(plt.Circle(WH2*(1+_to_image(k4['kart']['location'], np.array(k4['camera']['projection']).T, np.array(k4['camera']['view']).T)), 2, ec='b', fill=False, lw=1.5))
+                                col.add_artist(plt.Circle(WH2*(1+puck4), 2, ec='r', fill=False, lw=1.5))
+                        counter += 1
+                    plt.pause(1e-3)
+                    # print(tensor1.shape, tensor2.shape, tensor3.shape, tensor4.shape)
+                    # print(puck_1, puck_2, puck_3, puck_4)
+                    # print(exist1, exist2, exist3, exist4)
+                    # print()
+
+                    # append accumulated info to self.data
+                    if model == 0:
+                        # planner
+                        if exist1:
+                            self.data.append((image1, np.array(puck1).astype(np.float32)))
+                        if exist2:
+                            self.data.append((image2, np.array(puck2).astype(np.float32)))
+                        if exist3:
+                            self.data.append((image3, np.array(puck3).astype(np.float32)))
+                        if exist4:
+                            self.data.append((image4, np.array(puck4).astype(np.float32)))
+
+                    if model == 1:
+                        # detector
+                        if exist1:
+                            self.data.append((image1, np.array(instance1).astype(np.float32)))
+                        if exist2:
+                            self.data.append((image2, np.array(instance2).astype(np.float32)))
+                        if exist3:
+                            self.data.append((image3, np.array(instance3).astype(np.float32)))
+                        if exist4:
+                            self.data.append((image4, np.array(instance4).astype(np.float32)))
+                except EOFError:
+                    break
         self.transform = transform
 
     def __len__(self):
@@ -33,15 +167,15 @@ class SuperTuxDataset(Dataset):
         return data
 
 
-def load_data(dataset_path=DATASET_PATH, transform=dense_transforms.ToTensor(), num_workers=0, batch_size=128):
-    dataset = SuperTuxDataset(dataset_path, transform=transform)
+def load_data(dataset_path=DATASET_PATH, transform=dense_transforms.ToTensor(), num_workers=0, batch_size=128, model=0):
+    dataset = SuperTuxDataset(dataset_path, transform=transform, model=model)
     return DataLoader(dataset, num_workers=num_workers, batch_size=batch_size, shuffle=True, drop_last=True)
 
 
 class PyTux:
     _singleton = None
 
-    def __init__(self, screen_width=128, screen_height=96):
+    def __init__(self, screen_width=400, screen_height=300):
         assert PyTux._singleton is None, "Cannot create more than one pytux object"
         PyTux._singleton = self
         self.config = pystk.GraphicsConfig.hd()
@@ -92,7 +226,7 @@ class PyTux:
             config.step_size = 0.1
             config.num_kart = 2
             config.track = track
-            config.players[0].controller = pystk.PlayerConfig.Controller.AI_CONTROL
+            config.players[0].controller = pystk.PlayerConfig.Controller.PLAYER_CONTROL
             config.players[0].team = 0
             config.players.append(
                     pystk.PlayerConfig("", pystk.PlayerConfig.Controller.AI_CONTROL, 1))
@@ -129,32 +263,31 @@ class PyTux:
             aim_point_image = self._to_image(aim_point_world, proj, view)
 
             # aim_point_image for circle on screen for enemy kart
-            aim_point_world1 = state.players[1].kart.location
-            aim_point_image1 = self._to_image(aim_point_world1, proj, view)
+            # aim_point_world1 = state.players[1].kart.location
+            # aim_point_image1 = self._to_image(aim_point_world1, proj, view)
 
             shifted = self.k.render_data[0].instance >> pystk.object_type_shift
-            exists = False
+            exists = True
             if any(8 in x for x in shifted):
                 exists = True
 
-            if not exists:
+            if not exists and abs(aim_point_image[0]) != 1:
                 val = 1.0 if aim_point_image[0] > 0 else -1.0
                 aim_point_image = np.array([val, 0])
 
             if data_callback is not None:
-                # print("COLLECTING IMG:", aim_point_image)
-                data_callback(t, np.array(self.k.render_data[0].image), [aim_point_image, aim_point_image1])
+                data_callback(t, np.array(self.k.render_data[0].image), [aim_point_image])
 
             if planner:
                 image = np.array(self.k.render_data[0].image)
                 aim_point_image = planner(TF.to_tensor(image)[None]).squeeze(0).cpu().detach().numpy()
 
             current_vel = np.linalg.norm(kart.velocity)
-            action = controller(aim_point_image, current_vel)
+            action = controller(aim_point_image, current_vel, puck_in_view=exists)
 
-            if current_vel < 1.0 and t - last_rescue > RESCUE_TIMEOUT:
-                last_rescue = t
-                action.rescue = True
+            # if current_vel < 1.0 and t - last_rescue > RESCUE_TIMEOUT:
+            #     last_rescue = t
+            #     action.rescue = True
 
             if verbose:
                 ax.clear()
@@ -162,8 +295,8 @@ class PyTux:
                 # ax.imshow(self.k.render_data[0].instance)
                 WH2 = np.array([self.config.screen_width, self.config.screen_height]) / 2
                 ax.add_artist(plt.Circle(WH2*(1+self._to_image(kart.location, proj, view)), 2, ec='b', fill=False, lw=1.5))
-                ax.add_artist(plt.Circle(WH2*(1+aim_point_image), 2, ec='r', fill=False, lw=1.5))
-                # ax.add_artist(plt.Circle(WH2*(1+aim_point_image1), 2, ec='yellow', fill=False, lw=1.5))
+                ax.add_artist(plt.Circle(WH2*(1+self._to_image(aim_point_world, proj, view)), 2, ec='r', fill=False, lw=1.5))
+                ax.add_artist(plt.Circle(WH2*(1+aim_point_image), 2, ec='yellow', fill=False, lw=1.5))
                 if planner:
                     ap = aim_point_world
                     ax.add_artist(plt.Circle(WH2*(1+aim_point_image), 2, ec='g', fill=False, lw=1.5))
@@ -189,9 +322,9 @@ if __name__ == '__main__':
     from os import makedirs
 
 
-    def noisy_control(aim_pt, vel):
+    def noisy_control(aim_pt, vel, puck_in_view=None):
         return control(aim_pt + np.random.randn(*aim_pt.shape) * aim_noise,
-                       vel + np.random.randn() * vel_noise)
+                       vel + np.random.randn() * vel_noise, puck_in_view=puck_in_view)
 
 
     parser = ArgumentParser("Collects a dataset for the high-level planner")
@@ -208,9 +341,7 @@ if __name__ == '__main__':
     except OSError:
         pass
     pytux = PyTux()
-    images = []
-    # extract image from pkl file
-    # TODO: Send image info to PyTux and generate aim_points using _to_image()
+
     for track in args.track:
         n, images_per_game = 0, args.n_images
         aim_noise, vel_noise = 0, 0

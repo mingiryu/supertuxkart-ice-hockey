@@ -91,7 +91,7 @@ class Planner(torch.nn.Module):
         return spatial_argmax(res)
 
 
-def save_model(model):
+def save_planner(model):
     from torch import save
     from os import path
     if isinstance(model, Planner):
@@ -99,7 +99,7 @@ def save_model(model):
     raise ValueError("model type '%s' not supported!" % str(type(model)))
 
 
-def load_model():
+def load_planner():
     from torch import load
     from os import path
     r = Planner()
@@ -115,7 +115,7 @@ if __name__ == '__main__':
 
     def test_planner(args):
         # Load model
-        planner = load_model().eval()
+        planner = load_planner().eval()
         pytux = PyTux()
         for t in args.track:
             steps, how_far = pytux.rollout(t, control, planner=planner, max_frames=1000, verbose=args.verbose)

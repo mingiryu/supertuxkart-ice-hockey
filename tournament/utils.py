@@ -84,11 +84,11 @@ class VideoRecorder(BaseRecorder):
         import imageio
         self._writer = imageio.get_writer(video_file, fps=20)
 
-    def __call__(self, team1_state, team2_state, soccer_state, actions, team1_images=None, team2_images=None):
+    def __call__(self, team1_state, team2_state, soccer_state, actions, team1_images=None, team2_images=None, team1_instances=None, team2_instances=None):
         if team1_images and team2_images:
             self._writer.append_data(np.array(video_grid(team1_images, team2_images,
-                                                         'Blue: %d' % soccer_state['score'][1],
-                                                         'Red: %d' % soccer_state['score'][0])))
+                                                         'Red: %d' % soccer_state['score'][0],
+                                                         'Blue: %d' % soccer_state['score'][1])))
         else:
             self._writer.append_data(np.array(map_image(team1_state, team2_state, soccer_state)))
 
@@ -102,12 +102,14 @@ class StateRecorder(BaseRecorder):
         self._record_images = record_images
         self._f = open(state_action_file, 'wb')
 
-    def __call__(self, team1_state, team2_state, soccer_state, actions, team1_images=None, team2_images=None):
+    def __call__(self, team1_state, team2_state, soccer_state, actions, team1_images=None, team2_images=None, team1_instances=None, team2_instances=None):
         from pickle import dump
         data = dict(team1_state=team1_state, team2_state=team2_state, soccer_state=soccer_state, actions=actions)
         if self._record_images:
             data['team1_images'] = team1_images
             data['team2_images'] = team2_images
+            data['team1_instances'] = team1_instances
+            data['team2_instances'] = team2_instances
         dump(dict(data), self._f)
         self._f.flush()
 

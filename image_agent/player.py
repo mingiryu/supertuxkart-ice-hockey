@@ -1,5 +1,8 @@
 import pickle
-
+import torch
+import numpy as np
+from .models import load_planner, load_detector, control, dense_transforms
+from torchvision.transforms import functional as F
 
 # Objective1: Build a planner model to create aim points from images stored in pkl file
 #             Train planner model(s) using data in pkl file. We can pick and choose what to train for (attker -> ball, defender -> enemy karts)
@@ -22,6 +25,22 @@ class Team:
         self.team = None
         self.num_players = None
         self.goal = None
+        self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        self.attacker_planner = load_planner().to(self.device)
+        self.attacker_detector = load_detector().to(self.device)
+        self.attacker_backup = 0
+        self.attacker_starting_location = None
+        self.attacker_memory = [] # pop and push every frame
+
+    def _to_image(self, world_coord, proj, view):
+        """
+        :param world_coord: The [x,y,z] coord in the world to convert to a 2D point
+        :param proj: The projection of the kart's camera
+        :param view: The view of the kart's camera
+        :return: A 2D numpy array of the world_coord translated based on the kart's camera projection and view
+        """
+        p = proj @ view @ np.array(list(world_coord) + [1])
+        return np.clip(np.array([p[0] / p[-1], -p[1] / p[-1]]), -1, 1)
 
     def new_match(self, team: int, num_players: int) -> list:
         """
@@ -36,14 +55,6 @@ class Team:
         """
            TODO: feel free to edit or delete any of the code below
         """
-        # objects = []
-        # with (open('image_agent/data.pkl','rb')) as openfile:
-        #     while True:
-        #         try:
-        #             objects.append(pickle.load(openfile))
-        #         except EOFError:
-        #             break
-        # print(len(objects))
         self.team, self.num_players = team, num_players
         self.goal = [0, 0, 64.5] if team % 2 == 0 else [0, 0, -64.5]
 
@@ -84,5 +95,67 @@ class Team:
                  rescue:       bool (optional. no clue where you will end up though.)
                  steer:        float -1..1 steering angle
         """
-        # TODO: Change me. I'm just cruising straight
-        return [dict(acceleration=1, steer=0)] * self.num_players
+        #####################
+        #   ATTACKER CODE   #
+        #####################
+        # some setup
+        attacker_dict = {'acceleration':0.0, 'steer':0.0, 'brake': False, 'fire': False, 'nitro': False}
+        attacker = player_state[0]['kart']
+        attacker_cam = player_state[0]['camera']
+        attacker_vel = np.linalg.norm(attacker['velocity'])
+        attacker_loc_2d = self._to_image(attacker['location'], attacker_cam['projection'], attacker_cam['view'])
+        tensor = F.to_tensor(player_image[0])
+        tensor = tensor[None, :].to(self.device)
+        if self.attacker_starting_location == None:
+            self.attacker_starting_location = attacker['location']
+
+        # predicting attacker_aim_point
+        attacker_aim_point = self.attacker_planner(tensor).detach().cpu().numpy()
+        # attacker_heatmap = self.attacker_detector(tensor).detach().cpu().numpy()
+
+        attacker_aim_point = attacker_aim_point[0]
+        attacker_dist = np.linalg.norm(attacker_loc_2d - attacker_aim_point)
+        # print(attacker_dist)
+
+        # if we have nitro and the aim_point is nearly straight ahead
+        if attacker_aim_point[0] < 0.05 and attacker_aim_point[0] > -0.05:
+            attacker_dict['nitro'] = True
+
+        # compute acceleration
+        attacker_dict['acceleration'] = 1.0 if attacker_vel < 10.0 else 0.0
+
+        # compute steering
+        steer_angle = 3 * attacker_aim_point[0]
+        attacker_dict['steer'] = 1 if steer_angle * 3 > 0 else -1#np.clip(steer_angle * 3, -1, 1)
+        print(attacker_aim_point, 1 if steer_angle * 3 > 0 else -1)
+
+        # predicting that the puck is behind us. brake and backup.
+        if attacker_aim_point[0] < -0.1 and attacker_aim_point[1] > 0.7:
+            print("BRAKING LEFT")
+            attacker_dict['steer'] = -1 * attacker_dict['steer']
+            attacker_dict['acceleration'] = 0.0
+            attacker_dict['brake'] = True
+        elif attacker_aim_point[0] > 0.1 and attacker_aim_point[1] > 0.7:
+            print("BRAKING RIGHT")
+            attacker_dict['steer'] = -1 * attacker_dict['steer']
+            attacker_dict['acceleration'] = 0.0
+            attacker_dict['brake'] = True
+
+        # might be stuck. back up for 5 frames
+        # print(attacker_vel)
+        if attacker_vel < 0.1 and attacker['location'][0] != self.attacker_starting_location[0] and attacker['location'][2] != self.attacker_starting_location[2]:
+            self.attacker_backup = 7
+
+        if self.attacker_backup > 0:
+            attacker_dict['brake'] = True
+            attacker_dict['acceleration'] = 0.0
+            self.attacker_backup -= 1
+
+
+        #####################
+        #   DEFENDER CODE   #
+        #####################
+
+        # TODO: Write defender control code
+
+        return [attacker_dict, dict(acceleration=1, steer=0)]
