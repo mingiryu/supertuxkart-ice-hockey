@@ -1,12 +1,10 @@
-import numpy as np
-
 class Team:
     agent_type = 'state'
 
     def __init__(self):
         """
-          TODO: Load your agent here. Load network parameters, and other parts of our model
-          We will call this function with default arguments only
+        TODO: Load your agent here. Load network parameters, and other parts of our model
+        We will call this function with default arguments only
         """
         # creating vars to store team color, number of players, goal_point
         self.team = None

@@ -324,7 +324,7 @@ if __name__ == '__main__':
         # Create the teams
         team1 = AIRunner() if args.team1 == 'AI' else remote.RayTeamRunner.remote(args.team1)
         team2 = AIRunner() if args.team2 == 'AI' else remote.RayTeamRunner.remote(args.team2)
-
+        
         # What should we record?
         assert args.record_state is None or args.record_video is None, "Cannot record both video and state in parallel mode"
 
