@@ -33,7 +33,7 @@ class Team:
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
         self.frame = 0
         self.backup_timeout = 30
-        self.target_velocity = 15
+        self.target_velocity = 20
         self.memory_limit = 5
         self.puck_thresh = 0.1
 
@@ -119,6 +119,7 @@ class Team:
         """
            TODO: feel free to edit or delete any of the code below
         """
+        print("NEW MATCH!!")
         self.fig, self.ax = plt.subplots(1,1)
         self.team, self.num_players = team, num_players
         self.goal = [0, 0, 64.5] if team % 2 == 0 else [0, 0, -64.5]
@@ -180,9 +181,9 @@ class Team:
 
         # if in possession of the puck, ignore attacker_aim_point
         # instead, start driving to goal
-        if self._in_poss_of_puck():
-            print("IN POSSESSION OF THE PUCK!")
-            attacker_aim_point = self._to_image(self.goal, attacker_cam['projection'], attacker_cam['view'])
+        # if self._in_poss_of_puck():
+        #     print("IN POSSESSION OF THE PUCK!")
+        #     attacker_aim_point = self._to_image(self.goal, attacker_cam['projection'], attacker_cam['view'])
 
         # if we have nitro and the aim_point is nearly straight ahead
         if attacker_aim_point[0] < 0.05 and attacker_aim_point[0] > -0.05:
@@ -192,37 +193,40 @@ class Team:
         attacker_dict['acceleration'] = 1.0 if attacker_vel < self.target_velocity else 0.0
 
         # compute steering
-        steer_angle = 2 * attacker_aim_point[0]
-        attacker_dict['steer'] = np.clip(steer_angle * 2, -1, 1)
-
-        # did we just pass the puck? backup a smidge
-        # if len(self.attacker_memory) > 0 and self.attacker_memory[-1][1] > attacker_aim_point[1] and self.attacker_memory[-1][1] < 0.05 and self.attacker_memory[-1][1] > 0:
-        #     print("BACKING UP!")
-        #     self._backup(5, -1 * attacker_dict['steer'], self.frame, 0)
+        steer_angle = 3 * attacker_aim_point[0]
+        attacker_dict['steer'] = np.clip(steer_angle * 3, -1, 1)
 
         # if the puck is far to the sides, start braking
-        if abs(attacker_aim_point[0]) > 0.1:
-            attacker_dict['drift'] = True
-            attacker_dict['brake'] = True
-            attacker_dict['acceleration'] = 0.1
+        if abs(attacker_aim_point[0]) > 0.3:
+            # attacker_dict['brake'] = True
+            attacker_dict['acceleration'] = 0.3
 
-        # heading into a goal... don't do that
-        # second check is checking that front-z value > location-z value. ie, kart is heading into goal
-        if abs(attacker['location'][2]) >= abs(self.goal[2]) and abs(attacker['front'][2]) > abs(attacker['location'][2]):
-            angle = 0.0
-            if (attacker['location'][0] < 0.0 and attacker['location'][2] < 0.0) or (attacker['location'][0] > 0.0 and attacker['location'][2] > 0.0):
-                # top left or bottom right -> backup to left
-                angle = -1.0
-            if (attacker['location'][0] > 0.0 and attacker['location'][2] < 0.0) or (attacker['location'][0] < 0.0 and attacker['location'][2] > 0.0):
-                # top right or bottom left -> backup to right
-                angle = 1.0
-            self._backup(10, angle, self.frame, 0)
+        # can we backup? do we have a reason to do so?
+        if self.frame - self.attacker_last_backup > self.backup_timeout:
+            # did we just pass the puck? backup a smidge
+            if attacker_aim_point[1] >= 0.95:
+                print("PASSED THE PUCK!")
+                self._backup(10, -1 * attacker_dict['steer'], self.frame, 0)
 
-        # might be stuck. try backing up
-        if attacker_vel < 1.0 and self.frame - self.attacker_last_backup > self.backup_timeout:
-            self._backup(15, -1 * attacker_dict['steer'], self.frame, 0)
+            # heading into a goal... don't do that
+            # second check is checking that front-z value > location-z value. ie, kart is heading into goal
+            if abs(attacker['location'][2]) >= abs(self.goal[2]) and abs(attacker['front'][2]) > abs(attacker['location'][2]):
+                print("HEADING INTO A GOAL")
+                angle = 0.0
+                if (attacker['location'][0] < 0.0 and attacker['location'][2] < 0.0) or (attacker['location'][0] > 0.0 and attacker['location'][2] > 0.0):
+                    # top left or bottom right -> backup to left
+                    angle = -1.0
+                if (attacker['location'][0] > 0.0 and attacker['location'][2] < 0.0) or (attacker['location'][0] < 0.0 and attacker['location'][2] > 0.0):
+                    # top right or bottom left -> backup to right
+                    angle = 1.0
+                self._backup(10, angle, self.frame, 0)
 
-        # compute backup
+            # might be stuck near wall. try backing up
+            if attacker_vel < 1.0 and (self.attacker_starting_location[0] != attacker['location'][0] and self.attacker_starting_location[2] != attacker['location'][2]) and (abs(attacker['location'][0]) > 40 or abs(attacker['location'][2]) > 64):
+                print("STUCK!", self.attacker_starting_location, attacker['location'])
+                self._backup(10, -1 * attacker_dict['steer'], self.frame, 0)
+
+        # perform backup
         if self.attacker_backup_counter > 0:
             attacker_dict['brake'] = True
             attacker_dict['acceleration'] = 0.0

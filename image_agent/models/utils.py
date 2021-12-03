@@ -46,11 +46,35 @@ class SuperTuxDataset(Dataset):
                     puck3 = _to_image(puck, np.array(k3['camera']['projection']).T, np.array(k3['camera']['view']).T)
                     puck4 = _to_image(puck, np.array(k4['camera']['projection']).T, np.array(k4['camera']['view']).T)
 
-                    print(_to_image(k1['kart']['location'], np.array(k1['camera']['projection']).T, np.array(k1['camera']['view']).T))
-
                     # gathering enemy kart locations for all karts
-                    ek1_1 = _to_image(k3['kart']['location'], np.array(k1['camera']['projection']).T, np.array(k1['camera']['view']).T) # (x,y) in the view of K1
-                    ek2_1 = _to_image(k4['kart']['location'], np.array(k1['camera']['projection']).T, np.array(k1['camera']['view']).T) # (x,y) in the view of K1
+                    ek3_1 = _to_image(k3['kart']['location'], np.array(k1['camera']['projection']).T, np.array(k1['camera']['view']).T) # (x,y) in the view of k1
+                    ek4_1 = _to_image(k4['kart']['location'], np.array(k1['camera']['projection']).T, np.array(k1['camera']['view']).T) # (x,y) in the view of k1
+                    ek3_2 = _to_image(k3['kart']['location'], np.array(k2['camera']['projection']).T, np.array(k2['camera']['view']).T) # (x,y) in the view of k2
+                    ek4_2 = _to_image(k4['kart']['location'], np.array(k2['camera']['projection']).T, np.array(k2['camera']['view']).T) # (x,y) in the view of k2
+                    ek1_3 = _to_image(k1['kart']['location'], np.array(k3['camera']['projection']).T, np.array(k3['camera']['view']).T) # (x,y) in the view of k3
+                    ek2_3 = _to_image(k2['kart']['location'], np.array(k3['camera']['projection']).T, np.array(k3['camera']['view']).T) # (x,y) in the view of k3
+                    ek1_4 = _to_image(k1['kart']['location'], np.array(k4['camera']['projection']).T, np.array(k4['camera']['view']).T) # (x,y) in the view of k4
+                    ek2_4 = _to_image(k2['kart']['location'], np.array(k4['camera']['projection']).T, np.array(k4['camera']['view']).T) # (x,y) in the view of k4
+
+                    # gathering enemy kart distances from puck. want to target the kart closer to the puck
+                    dist1 = np.linalg.norm(np.array(k1['kart']['location']) - np.array(puck))
+                    dist2 = np.linalg.norm(np.array(k2['kart']['location']) - np.array(puck))
+                    dist3 = np.linalg.norm(np.array(k3['kart']['location']) - np.array(puck))
+                    dist4 = np.linalg.norm(np.array(k4['kart']['location']) - np.array(puck))
+
+                    # whoever is closest is now the target
+                    if min(dist1, dist2) == dist1:
+                        team2_k3_enemy_label = ek1_3
+                        team2_k4_enemy_label = ek1_4
+                    else:
+                        team2_k3_enemy_label = ek2_3
+                        team2_k4_enemy_label = ek2_4
+                    if min(dist3, dist4) == dist3:
+                        team1_k1_enemy_label = ek3_1
+                        team1_k2_enemy_label = ek3_2
+                    else:
+                        team1_k1_enemy_label = ek4_1
+                        team1_k2_enemy_label = ek4_2
 
                     # gathering images for all karts
                     image1 = Image.fromarray(t1_imgs[0])
@@ -120,31 +144,39 @@ class SuperTuxDataset(Dataset):
                     #         # print(counter, index)
                     #         col.clear()
                     #         if counter == 0 and index == 0:
+                    #             # if not exist1 or abs(puck1[0]) > 0.75:
                     #             # if exist1 and (abs(puck1[1]) > 0.75 or abs(puck1[0]) > 0.75):
                     #             col.imshow(t1_imgs[0])
                     #             # col.imshow(instance1)
                     #             col.add_artist(plt.Circle(WH2*(1+_to_image(k1['kart']['location'], np.array(k1['camera']['projection']).T, np.array(k1['camera']['view']).T)), 2, ec='b', fill=False, lw=1.5))
-                    #             col.add_artist(plt.Circle(WH2*(1+puck1), 2, ec='r', fill=False, lw=1.5))
+                    #             # col.add_artist(plt.Circle(WH2*(1+puck1), 2, ec='r', fill=False, lw=1.5))
+                    #             col.add_artist(plt.Circle(WH2*(1+team1_k1_enemy_label), 2, ec='r', fill=False, lw=1.5))
                     #         if counter == 0 and index == 1:
+                    #             # if not exist2 or abs(puck2[0]) > 0.75:
                     #             # if exist3 and (abs(puck3[1]) > 0.75 or abs(puck3[0]) > 0.75):
                     #             col.imshow(t2_imgs[0])
                     #             # col.imshow(instance3)
                     #             col.add_artist(plt.Circle(WH2*(1+_to_image(k3['kart']['location'], np.array(k3['camera']['projection']).T, np.array(k3['camera']['view']).T)), 2, ec='b', fill=False, lw=1.5))
-                    #             col.add_artist(plt.Circle(WH2*(1+puck3), 2, ec='r', fill=False, lw=1.5))
+                    #             # col.add_artist(plt.Circle(WH2*(1+puck3), 2, ec='r', fill=False, lw=1.5))
+                    #             col.add_artist(plt.Circle(WH2*(1+team2_k3_enemy_label), 2, ec='r', fill=False, lw=1.5))
                     #         if counter == 1 and index == 0:
+                    #             # if not exist3 or abs(puck3[0]) > 0.75:
                     #             # if exist2 and (abs(puck2[1]) > 0.75 or abs(puck2[0]) > 0.75):
                     #             col.imshow(t1_imgs[1])
                     #             # col.imshow(instance2)
                     #             col.add_artist(plt.Circle(WH2*(1+_to_image(k2['kart']['location'], np.array(k2['camera']['projection']).T, np.array(k2['camera']['view']).T)), 2, ec='b', fill=False, lw=1.5))
-                    #             col.add_artist(plt.Circle(WH2*(1+puck2), 2, ec='r', fill=False, lw=1.5))
+                    #             # col.add_artist(plt.Circle(WH2*(1+puck2), 2, ec='r', fill=False, lw=1.5))
+                    #             col.add_artist(plt.Circle(WH2*(1+team1_k2_enemy_label), 2, ec='r', fill=False, lw=1.5))
                     #         if counter == 1 and index == 1:
+                    #             # if not exist4 or abs(puck4[0]) > 0.75:
                     #             # if exist4 and (abs(puck4[1]) > 0.75 or abs(puck4[0]) > 0.75):
                     #             col.imshow(t2_imgs[1])
                     #             # col.imshow(instance4)
                     #             col.add_artist(plt.Circle(WH2*(1+_to_image(k4['kart']['location'], np.array(k4['camera']['projection']).T, np.array(k4['camera']['view']).T)), 2, ec='b', fill=False, lw=1.5))
-                    #             col.add_artist(plt.Circle(WH2*(1+puck4), 2, ec='r', fill=False, lw=1.5))
+                    #             # col.add_artist(plt.Circle(WH2*(1+puck4), 2, ec='r', fill=False, lw=1.5))
+                    #             col.add_artist(plt.Circle(WH2*(1+team2_k4_enemy_label), 2, ec='r', fill=False, lw=1.5))
                     #     counter += 1
-                    # plt.pause(1)
+                    # plt.pause(1e-5)
                     # print(tensor1.shape, tensor2.shape, tensor3.shape, tensor4.shape)
                     # print(puck1, puck2, puck3, puck4)
                     # print(exist1, exist2, exist3, exist4)
@@ -154,14 +186,24 @@ class SuperTuxDataset(Dataset):
                     # append accumulated info to self.data
                     if model == 0:
                         # planner
-                        if exist1:
-                            self.data.append((image1, np.array(puck1).astype(np.float32)))
-                        if exist2:
-                            self.data.append((image2, np.array(puck2).astype(np.float32)))
-                        if exist3:
-                            self.data.append((image3, np.array(puck3).astype(np.float32)))
-                        if exist4:
-                            self.data.append((image4, np.array(puck4).astype(np.float32)))
+
+                        # attacker data and labels
+                        # if not exist1 or abs(puck1[0]) > 0.75:
+                        #     self.data.append((image1, np.array(puck1).astype(np.float32)))
+                        # if not exist2 or abs(puck2[0]) > 0.75:
+                        #     self.data.append((image2, np.array(puck2).astype(np.float32)))
+                        # if not exist3 or abs(puck3[0]) > 0.75:
+                        #     self.data.append((image3, np.array(puck3).astype(np.float32)))
+                        # if not exist4 or abs(puck4[0]) > 0.75:
+                        #     self.data.append((image4, np.array(puck4).astype(np.float32)))
+
+                        # defender data and labels
+                        self.data.append((image1, np.array(team1_k1_enemy_label).astype(np.float32)))
+                        self.data.append((image2, np.array(team1_k2_enemy_label).astype(np.float32)))
+                        self.data.append((image3, np.array(team2_k3_enemy_label).astype(np.float32)))
+                        self.data.append((image4, np.array(team2_k4_enemy_label).astype(np.float32)))
+
+
 
                     if model == 1:
                         # detector
