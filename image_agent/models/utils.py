@@ -46,15 +46,17 @@ class SuperTuxDataset(Dataset):
                     puck3 = _to_image(puck, np.array(k3['camera']['projection']).T, np.array(k3['camera']['view']).T)
                     puck4 = _to_image(puck, np.array(k4['camera']['projection']).T, np.array(k4['camera']['view']).T)
 
+                    print(_to_image(k1['kart']['location'], np.array(k1['camera']['projection']).T, np.array(k1['camera']['view']).T))
+
                     # gathering enemy kart locations for all karts
                     ek1_1 = _to_image(k3['kart']['location'], np.array(k1['camera']['projection']).T, np.array(k1['camera']['view']).T) # (x,y) in the view of K1
                     ek2_1 = _to_image(k4['kart']['location'], np.array(k1['camera']['projection']).T, np.array(k1['camera']['view']).T) # (x,y) in the view of K1
 
                     # gathering images for all karts
-                    image1 =  Image.fromarray(t1_imgs[0])
-                    image2 =  Image.fromarray(t1_imgs[1])
-                    image3 =  Image.fromarray(t2_imgs[0])
-                    image4 =  Image.fromarray(t2_imgs[1])
+                    image1 = Image.fromarray(t1_imgs[0])
+                    image2 = Image.fromarray(t1_imgs[1])
+                    image3 = Image.fromarray(t2_imgs[0])
+                    image4 = Image.fromarray(t2_imgs[1])
 
                     # gathering instances for all karts
                     instance1 = d['team1_instances'][0]
@@ -98,38 +100,55 @@ class SuperTuxDataset(Dataset):
                     instance3[instance3 != 8] = 0
                     instance4[instance4 != 8] = 0
 
-                    # logging help
-                    counter = 0
-                    WH2 = np.array([400, 300]) / 2
-                    for row in ax:
-                        for index, col in enumerate(row):
-                            # print(counter, index)
-                            col.clear()
-                            if counter == 0 and index == 0:
-                                # col.imshow(t1_imgs[0])
-                                col.imshow(instance1)
-                                col.add_artist(plt.Circle(WH2*(1+_to_image(k1['kart']['location'], np.array(k1['camera']['projection']).T, np.array(k1['camera']['view']).T)), 2, ec='b', fill=False, lw=1.5))
-                                col.add_artist(plt.Circle(WH2*(1+puck1), 2, ec='r', fill=False, lw=1.5))
-                            if counter == 0 and index == 1:
-                                # col.imshow(t2_imgs[0])
-                                col.imshow(instance3)
-                                col.add_artist(plt.Circle(WH2*(1+_to_image(k3['kart']['location'], np.array(k3['camera']['projection']).T, np.array(k3['camera']['view']).T)), 2, ec='b', fill=False, lw=1.5))
-                                col.add_artist(plt.Circle(WH2*(1+puck3), 2, ec='r', fill=False, lw=1.5))
-                            if counter == 1 and index == 0:
-                                # col.imshow(t1_imgs[1])
-                                col.imshow(instance2)
-                                col.add_artist(plt.Circle(WH2*(1+_to_image(k2['kart']['location'], np.array(k2['camera']['projection']).T, np.array(k2['camera']['view']).T)), 2, ec='b', fill=False, lw=1.5))
-                                col.add_artist(plt.Circle(WH2*(1+puck2), 2, ec='r', fill=False, lw=1.5))
-                            if counter == 1 and index == 1:
-                                # col.imshow(t2_imgs[1])
-                                col.imshow(instance4)
-                                col.add_artist(plt.Circle(WH2*(1+_to_image(k4['kart']['location'], np.array(k4['camera']['projection']).T, np.array(k4['camera']['view']).T)), 2, ec='b', fill=False, lw=1.5))
-                                col.add_artist(plt.Circle(WH2*(1+puck4), 2, ec='r', fill=False, lw=1.5))
-                        counter += 1
-                    plt.pause(1e-3)
+                    # # building distance between puck and kart
+                    # dist1 = np.linalg.norm(np.array(k1['kart']['location']) - np.array(puck))
+                    # dist2 = np.linalg.norm(np.array(k2['kart']['location']) - np.array(puck))
+                    # dist3 = np.linalg.norm(np.array(k3['kart']['location']) - np.array(puck))
+                    # dist4 = np.linalg.norm(np.array(k4['kart']['location']) - np.array(puck))
+                    #
+                    # # appending dists to puck aim_point info
+                    # puck1 = np.append(puck1,dist1)
+                    # puck2 = np.append(puck2,dist2)
+                    # puck3 = np.append(puck3,dist3)
+                    # puck4 = np.append(puck4,dist4)
+
+                    # # logging help
+                    # counter = 0
+                    # WH2 = np.array([400, 300]) / 2
+                    # for row in ax:
+                    #     for index, col in enumerate(row):
+                    #         # print(counter, index)
+                    #         col.clear()
+                    #         if counter == 0 and index == 0:
+                    #             # if exist1 and (abs(puck1[1]) > 0.75 or abs(puck1[0]) > 0.75):
+                    #             col.imshow(t1_imgs[0])
+                    #             # col.imshow(instance1)
+                    #             col.add_artist(plt.Circle(WH2*(1+_to_image(k1['kart']['location'], np.array(k1['camera']['projection']).T, np.array(k1['camera']['view']).T)), 2, ec='b', fill=False, lw=1.5))
+                    #             col.add_artist(plt.Circle(WH2*(1+puck1), 2, ec='r', fill=False, lw=1.5))
+                    #         if counter == 0 and index == 1:
+                    #             # if exist3 and (abs(puck3[1]) > 0.75 or abs(puck3[0]) > 0.75):
+                    #             col.imshow(t2_imgs[0])
+                    #             # col.imshow(instance3)
+                    #             col.add_artist(plt.Circle(WH2*(1+_to_image(k3['kart']['location'], np.array(k3['camera']['projection']).T, np.array(k3['camera']['view']).T)), 2, ec='b', fill=False, lw=1.5))
+                    #             col.add_artist(plt.Circle(WH2*(1+puck3), 2, ec='r', fill=False, lw=1.5))
+                    #         if counter == 1 and index == 0:
+                    #             # if exist2 and (abs(puck2[1]) > 0.75 or abs(puck2[0]) > 0.75):
+                    #             col.imshow(t1_imgs[1])
+                    #             # col.imshow(instance2)
+                    #             col.add_artist(plt.Circle(WH2*(1+_to_image(k2['kart']['location'], np.array(k2['camera']['projection']).T, np.array(k2['camera']['view']).T)), 2, ec='b', fill=False, lw=1.5))
+                    #             col.add_artist(plt.Circle(WH2*(1+puck2), 2, ec='r', fill=False, lw=1.5))
+                    #         if counter == 1 and index == 1:
+                    #             # if exist4 and (abs(puck4[1]) > 0.75 or abs(puck4[0]) > 0.75):
+                    #             col.imshow(t2_imgs[1])
+                    #             # col.imshow(instance4)
+                    #             col.add_artist(plt.Circle(WH2*(1+_to_image(k4['kart']['location'], np.array(k4['camera']['projection']).T, np.array(k4['camera']['view']).T)), 2, ec='b', fill=False, lw=1.5))
+                    #             col.add_artist(plt.Circle(WH2*(1+puck4), 2, ec='r', fill=False, lw=1.5))
+                    #     counter += 1
+                    # plt.pause(1)
                     # print(tensor1.shape, tensor2.shape, tensor3.shape, tensor4.shape)
-                    # print(puck_1, puck_2, puck_3, puck_4)
+                    # print(puck1, puck2, puck3, puck4)
                     # print(exist1, exist2, exist3, exist4)
+                    # print(dist1, dist2, dist3, dist4)
                     # print()
 
                     # append accumulated info to self.data
@@ -183,6 +202,7 @@ class PyTux:
         self.config.screen_height = screen_height
         pystk.init(self.config)
         self.k = None
+        self.state = None
 
     @staticmethod
     def _point_on_track(distance, track, offset=0.0):
@@ -237,6 +257,7 @@ class PyTux:
 
         state = pystk.WorldState()
         track = pystk.Track()
+        self.state = state
 
         last_rescue = 0
 
@@ -267,13 +288,13 @@ class PyTux:
             # aim_point_image1 = self._to_image(aim_point_world1, proj, view)
 
             shifted = self.k.render_data[0].instance >> pystk.object_type_shift
-            exists = True
+            exists = False
             if any(8 in x for x in shifted):
                 exists = True
 
-            if not exists and abs(aim_point_image[0]) != 1:
+            if not exists:
                 val = 1.0 if aim_point_image[0] > 0 else -1.0
-                aim_point_image = np.array([val, 0])
+                aim_point_image = np.array([val, aim_point_image[1]])
 
             if data_callback is not None:
                 data_callback(t, np.array(self.k.render_data[0].image), [aim_point_image])

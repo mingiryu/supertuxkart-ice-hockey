@@ -3,6 +3,8 @@ import torch
 import numpy as np
 from .models import load_planner, load_detector, control, dense_transforms
 from torchvision.transforms import functional as F
+import matplotlib.pyplot as plt
+from PIL import Image
 
 # Objective1: Build a planner model to create aim points from images stored in pkl file
 #             Train planner model(s) using data in pkl file. We can pick and choose what to train for (attker -> ball, defender -> enemy karts)
@@ -22,18 +24,39 @@ class Team:
           TODO: Load your agent here. Load network parameters, and other parts of our model
           We will call this function with default arguments only
         """
+        ######################
+        #   General Params   #
+        ######################
         self.team = None
         self.num_players = None
         self.goal = None
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        self.frame = 0
+        self.backup_timeout = 30
+        self.target_velocity = 15
+        self.memory_limit = 5
+        self.puck_thresh = 0.1
+
+        ####################
+        #   Debug Params   #
+        ####################
+        self.fig = None
+        self.ax = None
+
+        #######################
+        #   Attacker Params   #
+        #######################
         self.attacker_planner = load_planner().to(self.device)
         self.attacker_detector = load_detector().to(self.device)
-        self.attacker_backup = 0
+        self.attacker_backup_counter = 0
+        self.attacker_backup_angle = None
+        self.attacker_last_backup = 0
         self.attacker_starting_location = None
         self.attacker_memory = [] # pop and push every frame
 
     def _to_image(self, world_coord, proj, view):
         """
+        Translates 3D world coords to a 2D coord in the projection and view given
         :param world_coord: The [x,y,z] coord in the world to convert to a 2D point
         :param proj: The projection of the kart's camera
         :param view: The view of the kart's camera
@@ -41,6 +64,47 @@ class Team:
         """
         p = proj @ view @ np.array(list(world_coord) + [1])
         return np.clip(np.array([p[0] / p[-1], -p[1] / p[-1]]), -1, 1)
+
+    def _backup(self, counter, angle, frame, agent):
+        """
+        Sets values within the agent to backup for x frames given by counter, and the angle to backup by
+        :param counter: The number of frames to backup for
+        :param angle: The angle to backup by
+        :param frame: The current frame to set
+        :param agent: The agent to apply the setup to
+        :return: None
+        """
+        if agent == 0:
+            self.attacker_last_backup = frame
+            self.attacker_backup_counter = counter
+            self.attacker_backup_angle = angle
+
+        if agent == 1:
+            self.defender_last_backup = frame
+            self.defender_backup_counter = counter
+            self.defender_backup_angle = angle
+
+    def _in_poss_of_puck(self):
+        """
+        Checks the average puck locations stored in memory. If average is below some threshold, return true else false
+        :return: Return true if the average of the puck locations in memory is below some threshold
+        """
+        puckX = []
+        puckY = []
+        avgX = 1
+        avgY = 1
+
+        if len(self.attacker_memory) == self.memory_limit:
+            for pos in self.attacker_memory:
+                puckX.append(pos[0])
+                puckY.append(pos[1])
+            avgX = np.mean(puckX)
+            avgY = np.mean(puckY)
+        else:
+            return False
+
+        return np.sqrt(avgX**2 + avgY**2) < self.puck_thresh
+
 
     def new_match(self, team: int, num_players: int) -> list:
         """
@@ -55,6 +119,7 @@ class Team:
         """
            TODO: feel free to edit or delete any of the code below
         """
+        self.fig, self.ax = plt.subplots(1,1)
         self.team, self.num_players = team, num_players
         self.goal = [0, 0, 64.5] if team % 2 == 0 else [0, 0, -64.5]
 
@@ -111,51 +176,82 @@ class Team:
 
         # predicting attacker_aim_point
         attacker_aim_point = self.attacker_planner(tensor).detach().cpu().numpy()
-        # attacker_heatmap = self.attacker_detector(tensor).detach().cpu().numpy()
-
         attacker_aim_point = attacker_aim_point[0]
-        attacker_dist = np.linalg.norm(attacker_loc_2d - attacker_aim_point)
-        # print(attacker_dist)
+
+        # if in possession of the puck, ignore attacker_aim_point
+        # instead, start driving to goal
+        if self._in_poss_of_puck():
+            print("IN POSSESSION OF THE PUCK!")
+            attacker_aim_point = self._to_image(self.goal, attacker_cam['projection'], attacker_cam['view'])
 
         # if we have nitro and the aim_point is nearly straight ahead
         if attacker_aim_point[0] < 0.05 and attacker_aim_point[0] > -0.05:
             attacker_dict['nitro'] = True
 
         # compute acceleration
-        attacker_dict['acceleration'] = 1.0 if attacker_vel < 10.0 else 0.0
+        attacker_dict['acceleration'] = 1.0 if attacker_vel < self.target_velocity else 0.0
 
         # compute steering
-        steer_angle = 3 * attacker_aim_point[0]
-        attacker_dict['steer'] = 1 if steer_angle * 3 > 0 else -1#np.clip(steer_angle * 3, -1, 1)
-        print(attacker_aim_point, 1 if steer_angle * 3 > 0 else -1)
+        steer_angle = 2 * attacker_aim_point[0]
+        attacker_dict['steer'] = np.clip(steer_angle * 2, -1, 1)
 
-        # predicting that the puck is behind us. brake and backup.
-        if attacker_aim_point[0] < -0.1 and attacker_aim_point[1] > 0.7:
-            print("BRAKING LEFT")
-            attacker_dict['steer'] = -1 * attacker_dict['steer']
-            attacker_dict['acceleration'] = 0.0
+        # did we just pass the puck? backup a smidge
+        # if len(self.attacker_memory) > 0 and self.attacker_memory[-1][1] > attacker_aim_point[1] and self.attacker_memory[-1][1] < 0.05 and self.attacker_memory[-1][1] > 0:
+        #     print("BACKING UP!")
+        #     self._backup(5, -1 * attacker_dict['steer'], self.frame, 0)
+
+        # if the puck is far to the sides, start braking
+        if abs(attacker_aim_point[0]) > 0.1:
+            attacker_dict['drift'] = True
             attacker_dict['brake'] = True
-        elif attacker_aim_point[0] > 0.1 and attacker_aim_point[1] > 0.7:
-            print("BRAKING RIGHT")
-            attacker_dict['steer'] = -1 * attacker_dict['steer']
-            attacker_dict['acceleration'] = 0.0
+            attacker_dict['acceleration'] = 0.1
+
+        # heading into a goal... don't do that
+        # second check is checking that front-z value > location-z value. ie, kart is heading into goal
+        if abs(attacker['location'][2]) >= abs(self.goal[2]) and abs(attacker['front'][2]) > abs(attacker['location'][2]):
+            angle = 0.0
+            if (attacker['location'][0] < 0.0 and attacker['location'][2] < 0.0) or (attacker['location'][0] > 0.0 and attacker['location'][2] > 0.0):
+                # top left or bottom right -> backup to left
+                angle = -1.0
+            if (attacker['location'][0] > 0.0 and attacker['location'][2] < 0.0) or (attacker['location'][0] < 0.0 and attacker['location'][2] > 0.0):
+                # top right or bottom left -> backup to right
+                angle = 1.0
+            self._backup(10, angle, self.frame, 0)
+
+        # might be stuck. try backing up
+        if attacker_vel < 1.0 and self.frame - self.attacker_last_backup > self.backup_timeout:
+            self._backup(15, -1 * attacker_dict['steer'], self.frame, 0)
+
+        # compute backup
+        if self.attacker_backup_counter > 0:
             attacker_dict['brake'] = True
-
-        # might be stuck. back up for 5 frames
-        # print(attacker_vel)
-        if attacker_vel < 0.1 and attacker['location'][0] != self.attacker_starting_location[0] and attacker['location'][2] != self.attacker_starting_location[2]:
-            self.attacker_backup = 7
-
-        if self.attacker_backup > 0:
-            attacker_dict['brake'] = True
             attacker_dict['acceleration'] = 0.0
-            self.attacker_backup -= 1
+            attacker_dict['steer'] = self.attacker_backup_angle
+            self.attacker_backup_counter -= 1
 
+        # add attacker_point_point to memory
+        if len(self.attacker_memory) == self.memory_limit:
+            self.attacker_memory.pop(0)
+        else:
+            self.attacker_memory.append(attacker_aim_point)
+
+
+        # debug logging
+        self.ax.clear()
+        self.ax.imshow(Image.fromarray(player_image[0]))
+        # ax.imshow(self.k.render_data[0].instance)
+        WH2 = np.array([400, 300]) / 2
+        self.ax.add_artist(plt.Circle(WH2*(1+attacker_loc_2d), 2, ec='b', fill=False, lw=1.5))
+        # ax.add_artist(plt.Circle(WH2*(1+self._to_image(aim_point_world, proj, view)), 2, ec='r', fill=False, lw=1.5))
+        self.ax.add_artist(plt.Circle(WH2*(1+attacker_aim_point), 2, ec='yellow', fill=False, lw=1.5))
+        plt.pause(1e-3)
 
         #####################
         #   DEFENDER CODE   #
         #####################
 
         # TODO: Write defender control code
+
+        self.frame += 1
 
         return [attacker_dict, dict(acceleration=1, steer=0)]
