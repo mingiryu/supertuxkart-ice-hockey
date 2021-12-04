@@ -49,34 +49,34 @@ def train(args):
 
 
     # training
-    print('beginning training...')
-    global_step = 0
-    lowest_loss = 10
-    for epoch in range(epochs):
-        model.train()
-        losses = []
-        for data, label in train_data:
-            data, label = data.to(device), label.to(device)
-
-            # generate output, calculate loss gradient
-            output = model(data)
-
-            # loss is MSE of dist between kart pos and ball pos
-            loss_value = loss(output, label)
-            losses.append(loss_value.detach().cpu().numpy())
-
-            # step it up
-            global_step += 1
-            loss_value.backward()
-            optimizer.step()
-            optimizer.zero_grad()
-
-        avg_loss = np.mean(np.array(losses))
-        print('Completed epoch %-3d\t avg planner loss: %-3f' % (epoch+1, avg_loss))
-        if avg_loss < lowest_loss:
-            save_planner(model)
-            lowest_loss = avg_loss
-    print('training complete.')
+    # print('beginning training...')
+    # global_step = 0
+    # lowest_loss = 10
+    # for epoch in range(epochs):
+    #     model.train()
+    #     losses = []
+    #     for data, label in train_data:
+    #         data, label = data.to(device), label.to(device)
+    #
+    #         # generate output, calculate loss gradient
+    #         output = model(data)
+    #
+    #         # loss is MSE of dist between kart pos and ball pos
+    #         loss_value = loss(output, label)
+    #         losses.append(loss_value.detach().cpu().numpy())
+    #
+    #         # step it up
+    #         global_step += 1
+    #         loss_value.backward()
+    #         optimizer.step()
+    #         optimizer.zero_grad()
+    #
+    #     avg_loss = np.mean(np.array(losses))
+    #     print('Completed epoch %-3d\t avg planner loss: %-3f' % (epoch+1, avg_loss))
+    #     if avg_loss < lowest_loss:
+    #         save_planner(model)
+    #         lowest_loss = avg_loss
+    # print('training complete.')
 
 def log(logger, img, label, pred, global_step):
     """

@@ -35,7 +35,8 @@ class Team:
         self.backup_timeout = 30
         self.target_velocity = 20
         self.memory_limit = 5
-        self.puck_thresh = 0.1
+        self.puck_thresh = 0.2
+        self.reset_counter = 0
 
         ####################
         #   Debug Params   #
@@ -46,13 +47,23 @@ class Team:
         #######################
         #   Attacker Params   #
         #######################
-        self.attacker_planner = load_planner().to(self.device)
-        self.attacker_detector = load_detector().to(self.device)
+        self.attacker_planner = load_planner('attacker.th').to(self.device)
         self.attacker_backup_counter = 0
         self.attacker_backup_angle = None
         self.attacker_last_backup = 0
         self.attacker_starting_location = None
         self.attacker_memory = [] # pop and push every frame
+        self.attacker_last_location = None
+
+        #######################
+        #   Defender Params   #
+        #######################
+        self.defender_planner = load_planner('defender.th').to(self.device)
+        self.defender_backup_counter = 0
+        self.defender_backup_angle = None
+        self.defender_last_backup = 0
+        self.defender_starting_location = None
+        self.defender_memory = [] # pop and push every frame
 
     def _to_image(self, world_coord, proj, view):
         """
@@ -84,27 +95,37 @@ class Team:
             self.defender_backup_counter = counter
             self.defender_backup_angle = angle
 
-    def _in_poss_of_puck(self):
+    def _in_poss_of_puck(self, next_aim_point, kart_loc):
         """
         Checks the average puck locations stored in memory. If average is below some threshold, return true else false
         :return: Return true if the average of the puck locations in memory is below some threshold
         """
-        puckX = []
-        puckY = []
-        avgX = 1
-        avgY = 1
+        puck_x = []
+        puck_y = []
+        avg_x = 1
+        avg_y = 1
 
+        dists = []
+        # calculate dists between next_aim_point and those in memory
         if len(self.attacker_memory) == self.memory_limit:
             for pos in self.attacker_memory:
-                puckX.append(pos[0])
-                puckY.append(pos[1])
-            avgX = np.mean(puckX)
-            avgY = np.mean(puckY)
+                puck_x.append(pos[0])
+                puck_y.append(pos[1])
+                dists.append(np.linalg.norm(np.array(next_aim_point) - np.array(pos)))
         else:
             return False
 
-        return np.sqrt(avgX**2 + avgY**2) < self.puck_thresh
-
+        # get average puck x and y's
+        avg_x = np.mean(np.array(puck_x))
+        avg_y = np.mean(np.array(puck_y))
+        # if dist < another threshold, ie very close, we are in possession
+        if np.linalg.norm(np.array([avg_x, avg_y]) - kart_loc) <= 0.25:
+            # if avg_dist < threshold, check avg puck_x and avg puck_y dist from kart
+            avg_dist = np.mean(np.array(dists))
+            print("AVG DISTS:", avg_dist)
+            return avg_dist <= self.puck_thresh
+        else:
+            return False
 
     def new_match(self, team: int, num_players: int) -> list:
         """
@@ -119,8 +140,7 @@ class Team:
         """
            TODO: feel free to edit or delete any of the code below
         """
-        print("NEW MATCH!!")
-        self.fig, self.ax = plt.subplots(1,1)
+        self.fig, self.ax = plt.subplots(1,2)
         self.team, self.num_players = team, num_players
         self.goal = [0, 0, 64.5] if team % 2 == 0 else [0, 0, -64.5]
 
@@ -169,7 +189,7 @@ class Team:
         attacker = player_state[0]['kart']
         attacker_cam = player_state[0]['camera']
         attacker_vel = np.linalg.norm(attacker['velocity'])
-        attacker_loc_2d = self._to_image(attacker['location'], attacker_cam['projection'], attacker_cam['view'])
+        attacker_loc_2d = self._to_image(attacker['location'], np.array(attacker_cam['projection']).T, np.array(attacker_cam['view']).T)
         tensor = F.to_tensor(player_image[0])
         tensor = tensor[None, :].to(self.device)
         if self.attacker_starting_location == None:
@@ -181,9 +201,10 @@ class Team:
 
         # if in possession of the puck, ignore attacker_aim_point
         # instead, start driving to goal
-        # if self._in_poss_of_puck():
-        #     print("IN POSSESSION OF THE PUCK!")
-        #     attacker_aim_point = self._to_image(self.goal, attacker_cam['projection'], attacker_cam['view'])
+        if self._in_poss_of_puck(attacker_aim_point, attacker_loc_2d):
+            print("IN POSSESSION OF THE PUCK!")
+            self.target_velocity = 10
+            attacker_aim_point = self._to_image(self.goal, np.array(attacker_cam['projection']).T, np.array(attacker_cam['view']).T)
 
         # if we have nitro and the aim_point is nearly straight ahead
         if attacker_aim_point[0] < 0.05 and attacker_aim_point[0] > -0.05:
@@ -198,20 +219,20 @@ class Team:
 
         # if the puck is far to the sides, start braking
         if abs(attacker_aim_point[0]) > 0.3:
-            # attacker_dict['brake'] = True
+            attacker_dict['brake'] = True
             attacker_dict['acceleration'] = 0.3
 
         # can we backup? do we have a reason to do so?
-        if self.frame - self.attacker_last_backup > self.backup_timeout:
+        if self.frame - self.attacker_last_backup > self.backup_timeout and self.frame - self.reset_counter > self.backup_timeout:
             # did we just pass the puck? backup a smidge
             if attacker_aim_point[1] >= 0.95:
-                print("PASSED THE PUCK!")
+                print("ATTACKER PASSED THE PUCK!")
                 self._backup(10, -1 * attacker_dict['steer'], self.frame, 0)
 
             # heading into a goal... don't do that
             # second check is checking that front-z value > location-z value. ie, kart is heading into goal
             if abs(attacker['location'][2]) >= abs(self.goal[2]) and abs(attacker['front'][2]) > abs(attacker['location'][2]):
-                print("HEADING INTO A GOAL")
+                print("ATTACKER HEADING INTO A GOAL")
                 angle = 0.0
                 if (attacker['location'][0] < 0.0 and attacker['location'][2] < 0.0) or (attacker['location'][0] > 0.0 and attacker['location'][2] > 0.0):
                     # top left or bottom right -> backup to left
@@ -221,9 +242,18 @@ class Team:
                     angle = 1.0
                 self._backup(10, angle, self.frame, 0)
 
+            # calculate dist between current pos and prev pos
+            # if dist == 0, that probably means we reset.
+            d = 1.0
+            if self.attacker_last_location != None:
+                d = np.linalg.norm(np.array([attacker['location'][0], attacker['location'][1]]) - np.array([self.attacker_last_location[0], self.attacker_last_location[1]]))
+                if d == 0:
+                    print("\n\n\tSETTING RESET COUNTER\n\n")
+                    self.reset_counter = self.frame
+
             # might be stuck near wall. try backing up
-            if attacker_vel < 1.0 and (self.attacker_starting_location[0] != attacker['location'][0] and self.attacker_starting_location[2] != attacker['location'][2]) and (abs(attacker['location'][0]) > 40 or abs(attacker['location'][2]) > 64):
-                print("STUCK!", self.attacker_starting_location, attacker['location'])
+            if attacker_vel < 1.0 and d != 0.0:
+                print("ATTACKER STUCK!", self.attacker_starting_location, attacker['location'])
                 self._backup(10, -1 * attacker_dict['steer'], self.frame, 0)
 
         # perform backup
@@ -239,23 +269,104 @@ class Team:
         else:
             self.attacker_memory.append(attacker_aim_point)
 
-
-        # debug logging
-        self.ax.clear()
-        self.ax.imshow(Image.fromarray(player_image[0]))
-        # ax.imshow(self.k.render_data[0].instance)
-        WH2 = np.array([400, 300]) / 2
-        self.ax.add_artist(plt.Circle(WH2*(1+attacker_loc_2d), 2, ec='b', fill=False, lw=1.5))
-        # ax.add_artist(plt.Circle(WH2*(1+self._to_image(aim_point_world, proj, view)), 2, ec='r', fill=False, lw=1.5))
-        self.ax.add_artist(plt.Circle(WH2*(1+attacker_aim_point), 2, ec='yellow', fill=False, lw=1.5))
-        plt.pause(1e-3)
+        self.attacker_last_location = attacker['location']
 
         #####################
         #   DEFENDER CODE   #
         #####################
+        # some setup
+        defender_dict = {'acceleration':0.0, 'steer':0.0, 'brake': False, 'fire': False, 'nitro': False}
+        defender = player_state[1]['kart']
+        defender_cam = player_state[0]['camera']
+        defender_vel = np.linalg.norm(defender['velocity'])
+        defender_loc_2d = self._to_image(defender['location'], np.array(defender_cam['projection']).T, np.array(defender_cam['view']).T)
+        tensor = F.to_tensor(player_image[0])
+        tensor = tensor[None, :].to(self.device)
+        if self.defender_starting_location == None:
+            self.defender_starting_location = defender['location']
 
-        # TODO: Write defender control code
+        # predicting defender_aim_point
+        defender_aim_point = self.defender_planner(tensor).detach().cpu().numpy()
+        defender_aim_point = defender_aim_point[0]
+
+        # if in possession of the puck, ignore defender_aim_point
+        # instead, start driving to goal
+        # if self._in_poss_of_puck():
+        #     print("IN POSSESSION OF THE PUCK!")
+        #     defender_aim_point = self._to_image(self.goal, defender_cam['projection'], defender_cam['view'])
+
+        # if we have nitro and the aim_point is nearly straight ahead
+        if defender_aim_point[0] < 0.05 and defender_aim_point[0] > -0.05:
+            defender_dict['nitro'] = True
+
+        # compute acceleration
+        defender_dict['acceleration'] = 1.0 if defender_vel < self.target_velocity else 0.0
+
+        # compute steering
+        steer_angle = 3 * defender_aim_point[0]
+        defender_dict['steer'] = np.clip(steer_angle * 3, -1, 1)
+
+        # if the puck is far to the sides, start braking
+        if abs(defender_aim_point[0]) > 0.3:
+            # defender_dict['brake'] = True
+            defender_dict['acceleration'] = 0.3
+
+        # can we backup? do we have a reason to do so?
+        if self.frame - self.defender_last_backup > self.backup_timeout:
+            # did we just pass the puck? backup a smidge
+            if defender_aim_point[1] >= 0.95:
+                # print("DEFENDER PASSED THE PUCK!")
+                self._backup(10, -1 * defender_dict['steer'], self.frame, 1)
+
+            # heading into a goal... don't do that
+            # second check is checking that front-z value > location-z value. ie, kart is heading into goal
+            if abs(defender['location'][2]) >= abs(self.goal[2]) and abs(defender['front'][2]) > abs(defender['location'][2]):
+                # print("DEFENDER HEADING INTO A GOAL")
+                angle = 0.0
+                if (defender['location'][0] < 0.0 and defender['location'][2] < 0.0) or (defender['location'][0] > 0.0 and defender['location'][2] > 0.0):
+                    # top left or bottom right -> backup to left
+                    angle = -1.0
+                if (defender['location'][0] > 0.0 and defender['location'][2] < 0.0) or (defender['location'][0] < 0.0 and defender['location'][2] > 0.0):
+                    # top right or bottom left -> backup to right
+                    angle = 1.0
+                self._backup(10, angle, self.frame, 1)
+
+            # might be stuck near wall. try backing up
+            if defender_vel < 1.0 and (self.defender_starting_location[0] != defender['location'][0] and self.defender_starting_location[2] != defender['location'][2]) and (abs(defender['location'][0]) > 40 or abs(defender['location'][2]) > 64):
+                # print("DEFENDER STUCK!", self.defender_starting_location, defender['location'])
+                self._backup(10, -1 * defender_dict['steer'], self.frame, 1)
+
+        # perform backup
+        if self.defender_backup_counter > 0:
+            defender_dict['brake'] = True
+            defender_dict['acceleration'] = 0.0
+            defender_dict['steer'] = self.defender_backup_angle
+            self.defender_backup_counter -= 1
+
+        # add defender_point_point to memory
+        if len(self.defender_memory) == self.memory_limit:
+            self.defender_memory.pop(0)
+        else:
+            self.defender_memory.append(defender_aim_point)
+
+        # debug logging
+        for index, row in enumerate(self.ax):
+            row.clear()
+            if index == 0:
+                row.imshow(Image.fromarray(player_image[0]))
+                WH2 = np.array([400, 300]) / 2
+                row.add_artist(plt.Circle(WH2*(1+attacker_loc_2d), 2, ec='b', fill=False, lw=1.5))
+                row.add_artist(plt.Circle(WH2*(1+attacker_aim_point), 2, ec='yellow', fill=False, lw=1.5))
+        #     if index == 1:
+        #         row.imshow(Image.fromarray(player_image[1]))
+        #         # col.imshow(self.k.render_data[0].instance)
+        #         WH2 = np.array([400, 300]) / 2
+        #         row.add_artist(plt.Circle(WH2*(1+defender_loc_2d), 2, ec='b', fill=False, lw=1.5))
+        #         # col.add_artist(plt.Circle(WH2*(1+self._to_image(aim_point_world, proj, view)), 2, ec='r', fill=False, lw=1.5))
+        #         row.add_artist(plt.Circle(WH2*(1+defender_aim_point), 2, ec='yellow', fill=False, lw=1.5))
+        plt.pause(1e-10)
 
         self.frame += 1
 
+        # return [attacker_dict, defender_dict]
         return [attacker_dict, dict(acceleration=1, steer=0)]
