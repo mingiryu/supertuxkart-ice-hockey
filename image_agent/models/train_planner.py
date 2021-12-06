@@ -18,6 +18,7 @@ def train(args):
     batch_size = int(args.batch)
     num_workers = int(args.workers)
     lr = float(args.learn)
+    cont = int(args.cont)
     train_path = 'data.pkl'
 
     # hooking up device
@@ -28,8 +29,8 @@ def train(args):
 
     # creating composition of image transforms
     transforms = dense_transforms.Compose([
-        dense_transforms.ColorJitter(brightness=0.9, contrast=0.9, saturation=0.9, hue=0.1),
-        dense_transforms.RandomHorizontalFlip(),
+        # dense_transforms.ColorJitter(brightness=0.9, contrast=0.9, saturation=0.9, hue=0.1),
+        # dense_transforms.RandomHorizontalFlip(),
         dense_transforms.ToTensor()
     ])
 
@@ -39,7 +40,8 @@ def train(args):
     # sending model, loss, and data to device
     print('setup complete.')
     print('loading dataset...')
-    # model = load_planner()
+    if cont == 1:
+        model = load_planner()
     model = model.to(device)
     loss = loss.to(device)
     train_data = load_data(train_path, batch_size=batch_size, num_workers=num_workers, transform=transforms, model=0)
@@ -47,34 +49,34 @@ def train(args):
 
 
     # training
-    print('beginning training...')
-    global_step = 0
-    lowest_loss = 10
-    for epoch in range(epochs):
-        model.train()
-        losses = []
-        for data, label in train_data:
-            data, label = data.to(device), label.to(device)
-
-            # generate output, calculate loss gradient
-            output = model(data)
-
-            # loss is MSE of dist between kart pos and ball pos
-            loss_value = loss(output, label)
-            losses.append(loss_value.detach().cpu().numpy())
-
-            # step it up
-            global_step += 1
-            loss_value.backward()
-            optimizer.step()
-            optimizer.zero_grad()
-
-        avg_loss = np.mean(np.array(losses))
-        print('Completed epoch %-3d\t avg planner loss: %-3f' % (epoch+1, avg_loss))
-        if avg_loss < lowest_loss:
-            save_planner(model)
-            lowest_loss = avg_loss
-    print('training complete.')
+    # print('beginning training...')
+    # global_step = 0
+    # lowest_loss = 10
+    # for epoch in range(epochs):
+    #     model.train()
+    #     losses = []
+    #     for data, label in train_data:
+    #         data, label = data.to(device), label.to(device)
+    #
+    #         # generate output, calculate loss gradient
+    #         output = model(data)
+    #
+    #         # loss is MSE of dist between kart pos and ball pos
+    #         loss_value = loss(output, label)
+    #         losses.append(loss_value.detach().cpu().numpy())
+    #
+    #         # step it up
+    #         global_step += 1
+    #         loss_value.backward()
+    #         optimizer.step()
+    #         optimizer.zero_grad()
+    #
+    #     avg_loss = np.mean(np.array(losses))
+    #     print('Completed epoch %-3d\t avg planner loss: %-3f' % (epoch+1, avg_loss))
+    #     if avg_loss < lowest_loss:
+    #         save_planner(model)
+    #         lowest_loss = avg_loss
+    # print('training complete.')
 
 def log(logger, img, label, pred, global_step):
     """
@@ -105,6 +107,7 @@ if __name__ == '__main__':
     parser.add_argument('-b', '--batch', default=32)
     parser.add_argument('-w', '--workers', default=2)
     parser.add_argument('-lr', '--learn', default=0.01)
+    parser.add_argument('-c', '--cont', action='store_true')
 
     args = parser.parse_args()
     train(args)

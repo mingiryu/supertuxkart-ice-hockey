@@ -155,6 +155,7 @@ class Match:
 
         _, error, t2 = self._g(self._r(team2.info)())
         if error:
+            print("ERROR:", error)
             raise MatchException([3, 0], 'crash during {}: {}'.format(where, error), 'other team crashed')
 
         logging.debug('timeout {} <? {} {}'.format(timeout_slack + n_iter * timeout_step, t1, t2))

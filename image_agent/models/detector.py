@@ -47,14 +47,14 @@ class Detector(torch.nn.Module):
         def forward(self, x):
             return F.relu(self.c1(x))
 
-    def __init__(self, layers=[16, 32, 64, 128], n_class=1, kernel_size=3, use_skip=True):
+    def __init__(self, layers=[16, 32, 64, 128], n_class=3, kernel_size=3, use_skip=True):
         """
            Your code here.
            Setup your detection network
         """
         super().__init__()
-        # self.input_mean = torch.Tensor([0.2788, 0.2657, 0.2629])
-        # self.input_std = torch.Tensor([0.2064, 0.1944, 0.2252])
+        self.input_mean = torch.Tensor([0.2788, 0.2657, 0.2629])
+        self.input_std = torch.Tensor([0.2064, 0.1944, 0.2252])
 
         c = 3
         self.use_skip = use_skip
@@ -78,7 +78,7 @@ class Detector(torch.nn.Module):
            Implement a forward pass through the network, use forward for training,
            and detect for detection
         """
-        z = x.to(x.device)
+        z = (x - self.input_mean[None, :, None, None].to(x.device)) / self.input_std[None, :, None, None].to(x.device)
         up_activation = []
         for i in range(self.n_conv):
             # Add all the information required for skip connections
@@ -142,19 +142,20 @@ if __name__ == '__main__':
     for i, ax in enumerate(axs.flat):
         im, label = dataset[i*a+b-c]
         ax.imshow(TF.to_pil_image(im), interpolation=None)
-        for k in label:
-            ax.add_patch(
-                patches.Rectangle((k[0] - 0.5, k[1] - 0.5), k[2] - k[0], k[3] - k[1], facecolor='none', edgecolor='r'))
+        # for k in label:
+        #     ax.add_patch(
+        #         patches.Rectangle((k[0] - 0.5, k[1] - 0.5), k[2] - k[0], k[3] - k[1], facecolor='none', edgecolor='r'))
         # for k in bomb:
         #     ax.add_patch(
         #         patches.Rectangle((k[0] - 0.5, k[1] - 0.5), k[2] - k[0], k[3] - k[1], facecolor='none', edgecolor='g'))
         # for k in pickup:
         #     ax.add_patch(
         #         patches.Rectangle((k[0] - 0.5, k[1] - 0.5), k[2] - k[0], k[3] - k[1], facecolor='none', edgecolor='b'))
+        print(im.shape)
         detections = model.detect(im.to(device))
-        for c in range(1):
+        for c in range(2,3):
             for s, cx, cy, w, h in detections[c]:
+                print(s)
                 ax.add_patch(patches.Circle((cx, cy), radius=max(2 + s / 2, 0.1), color='rgb'[c]))
         ax.axis('off')
-        print()
     show()

@@ -99,11 +99,11 @@ def save_planner(model):
     raise ValueError("model type '%s' not supported!" % str(type(model)))
 
 
-def load_planner():
+def load_planner(model='planner.th'):
     from torch import load
     from os import path
     r = Planner()
-    r.load_state_dict(load(path.join(path.dirname(path.abspath(__file__)), 'planner.th'), map_location='cpu'))
+    r.load_state_dict(load(path.join(path.dirname(path.abspath(__file__)), model), map_location='cpu'))
     return r
 
 
@@ -120,6 +120,7 @@ if __name__ == '__main__':
         for t in args.track:
             steps, how_far = pytux.rollout(t, control, planner=planner, max_frames=1000, verbose=args.verbose)
             print(steps, how_far)
+        print("RESULTS:", pytux.state.soccer.score)
         pytux.close()
 
 
