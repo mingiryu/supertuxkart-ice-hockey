@@ -83,6 +83,7 @@ class SuperTuxDataset(Dataset):
                     image4 = Image.fromarray(t2_imgs[1])
 
                     # gathering instances for all karts
+                    # 300 (height) x 400 (width)
                     instance1 = d['team1_instances'][0]
                     instance2 = d['team1_instances'][1]
                     instance3 = d['team2_instances'][0]
@@ -118,11 +119,54 @@ class SuperTuxDataset(Dataset):
                         puck4 = np.array([val, 1])
 
                     # building labels for detector
-                    # 1 when pixel is 8 (projectile/puck) else 0
-                    instance1[instance1 != 8] = 0
-                    instance2[instance2 != 8] = 0
-                    instance3[instance3 != 8] = 0
-                    instance4[instance4 != 8] = 0
+                    # n = num of channels for detection
+                    # 1 when detected else 0
+                    # label for 3 classes
+                    # 3 x 300 x 400 (kart=1, pickup=4, puck=8)
+                    #                      1         4         8
+                    c = 3
+                    h, w = instance1.shape
+
+                    detector_label1 = np.zeros((c,h,w))
+                    detector_label2 = np.zeros((c,h,w))
+                    detector_label3 = np.zeros((c,h,w))
+                    detector_label4 = np.zeros((c,h,w))
+
+                    detector_label1[0][instance1 == 1] = 1
+                    detector_label1[1][instance1 == 4] = 1
+                    detector_label1[2][instance1 == 8] = 1
+
+                    detector_label2[0][instance2 == 1] = 1
+                    detector_label2[1][instance2 == 4] = 1
+                    detector_label2[2][instance2 == 8] = 1
+
+                    detector_label3[0][instance3 == 1] = 1
+                    detector_label3[1][instance3 == 4] = 1
+                    detector_label3[2][instance3 == 8] = 1
+
+                    detector_label4[0][instance4 == 1] = 1
+                    detector_label4[1][instance4 == 4] = 1
+                    detector_label4[2][instance4 == 8] = 1
+
+                    # detector_label2[0][detector_label2[0] != 1] = 0
+                    # detector_label2[1][detector_label2[1] != 4] = 0
+                    # detector_label2[1][detector_label2[1] != 0] = 1
+                    # detector_label2[2][detector_label2[2] != 8] = 0
+                    # detector_label2[2][detector_label2[2] != 0] = 1
+
+                    # detector_label3[0][detector_label3[0] != 1] = 0
+                    # detector_label3[1][detector_label3[1] != 4] = 0
+                    # detector_label3[1][detector_label3[1] != 0] = 1
+                    # detector_label3[2][detector_label3[2] != 8] = 0
+                    # detector_label3[2][detector_label3[2] != 0] = 1
+
+                    # detector_label4[0][detector_label4[0] != 1] = 0
+                    # detector_label4[1][detector_label4[1] != 4] = 0
+                    # detector_label4[1][detector_label4[1] != 0] = 1
+                    # detector_label4[2][detector_label4[2] != 8] = 0
+                    # detector_label4[2][detector_label4[2] != 0] = 1
+
+                    # print(np.array(detector_label1).shape,np.array(detector_label2).shape,np.array(detector_label3).shape,np.array(detector_label4).shape)
 
                     # # building distance between puck and kart
                     # dist1 = np.linalg.norm(np.array(k1['kart']['location']) - np.array(puck))
@@ -137,45 +181,45 @@ class SuperTuxDataset(Dataset):
                     # puck4 = np.append(puck4,dist4)
 
                     # # logging help
-                    counter = 0
-                    WH2 = np.array([400, 300]) / 2
-                    for row in ax:
-                        for index, col in enumerate(row):
-                            col.clear()
-                            if counter == 0 and index == 0:
+                    # counter = 0
+                    # WH2 = np.array([400, 300]) / 2
+                    # for row in ax:
+                    #     for index, col in enumerate(row):
+                    #         col.clear()
+                    #         if counter == 0 and index == 0:
                                 # if not exist1 or abs(puck1[0]) > 0.75:
                                 # if exist1 and (abs(puck1[1]) > 0.75 or abs(puck1[0]) > 0.75):
-                                col.imshow(t1_imgs[0])
-                                # col.imshow(instance1)
-                                col.add_artist(plt.Circle(WH2*(1+_to_image(k1['kart']['location'], np.array(k1['camera']['projection']).T, np.array(k1['camera']['view']).T)), 2, ec='b', fill=False, lw=1.5))
-                                # col.add_artist(plt.Circle(WH2*(1+puck1), 2, ec='r', fill=False, lw=1.5))
-                                col.add_artist(plt.Circle(WH2*(1+team1_k1_enemy_label), 2, ec='r', fill=False, lw=1.5))
-                            if counter == 0 and index == 1:
-                                # if not exist2 or abs(puck2[0]) > 0.75:
-                                # if exist3 and (abs(puck3[1]) > 0.75 or abs(puck3[0]) > 0.75):
-                                col.imshow(t2_imgs[0])
-                                # col.imshow(instance3)
-                                col.add_artist(plt.Circle(WH2*(1+_to_image(k3['kart']['location'], np.array(k3['camera']['projection']).T, np.array(k3['camera']['view']).T)), 2, ec='b', fill=False, lw=1.5))
-                                # col.add_artist(plt.Circle(WH2*(1+puck3), 2, ec='r', fill=False, lw=1.5))
-                                col.add_artist(plt.Circle(WH2*(1+team2_k3_enemy_label), 2, ec='r', fill=False, lw=1.5))
-                            if counter == 1 and index == 0:
-                                # if not exist3 or abs(puck3[0]) > 0.75:
-                                # if exist2 and (abs(puck2[1]) > 0.75 or abs(puck2[0]) > 0.75):
-                                col.imshow(t1_imgs[1])
-                                # col.imshow(instance2)
-                                col.add_artist(plt.Circle(WH2*(1+_to_image(k2['kart']['location'], np.array(k2['camera']['projection']).T, np.array(k2['camera']['view']).T)), 2, ec='b', fill=False, lw=1.5))
-                                # col.add_artist(plt.Circle(WH2*(1+puck2), 2, ec='r', fill=False, lw=1.5))
-                                col.add_artist(plt.Circle(WH2*(1+team1_k2_enemy_label), 2, ec='r', fill=False, lw=1.5))
-                            if counter == 1 and index == 1:
-                                # if not exist4 or abs(puck4[0]) > 0.75:
-                                # if exist4 and (abs(puck4[1]) > 0.75 or abs(puck4[0]) > 0.75):
-                                col.imshow(t2_imgs[1])
-                                # col.imshow(instance4)
-                                col.add_artist(plt.Circle(WH2*(1+_to_image(k4['kart']['location'], np.array(k4['camera']['projection']).T, np.array(k4['camera']['view']).T)), 2, ec='b', fill=False, lw=1.5))
-                                # col.add_artist(plt.Circle(WH2*(1+puck4), 2, ec='r', fill=False, lw=1.5))
-                                col.add_artist(plt.Circle(WH2*(1+team2_k4_enemy_label), 2, ec='r', fill=False, lw=1.5))
-                        counter += 1
-                    plt.pause(1e-5)
+                                # col.imshow(t1_imgs[0])
+                                # col.imshow(detector_label1[2])
+                    #             col.add_artist(plt.Circle(WH2*(1+_to_image(k1['kart']['location'], np.array(k1['camera']['projection']).T, np.array(k1['camera']['view']).T)), 2, ec='b', fill=False, lw=1.5))
+                    #             col.add_artist(plt.Circle(WH2*(1+puck1), 2, ec='r', fill=False, lw=1.5))
+                    #             col.add_artist(plt.Circle(WH2*(1+team1_k1_enemy_label), 2, ec='r', fill=False, lw=1.5))
+                    #         if counter == 0 and index == 1:
+                    #             # if not exist2 or abs(puck2[0]) > 0.75:
+                    #             # if exist3 and (abs(puck3[1]) > 0.75 or abs(puck3[0]) > 0.75):
+                    #             col.imshow(t2_imgs[0])
+                    #             # col.imshow(instance3)
+                    #             col.add_artist(plt.Circle(WH2*(1+_to_image(k3['kart']['location'], np.array(k3['camera']['projection']).T, np.array(k3['camera']['view']).T)), 2, ec='b', fill=False, lw=1.5))
+                    #             # col.add_artist(plt.Circle(WH2*(1+puck3), 2, ec='r', fill=False, lw=1.5))
+                    #             # col.add_artist(plt.Circle(WH2*(1+team2_k3_enemy_label), 2, ec='r', fill=False, lw=1.5))
+                    #         if counter == 1 and index == 0:
+                    #             # if not exist3 or abs(puck3[0]) > 0.75:
+                    #             # if exist2 and (abs(puck2[1]) > 0.75 or abs(puck2[0]) > 0.75):
+                    #             col.imshow(t1_imgs[1])
+                    #             # col.imshow(instance2)
+                    #             col.add_artist(plt.Circle(WH2*(1+_to_image(k2['kart']['location'], np.array(k2['camera']['projection']).T, np.array(k2['camera']['view']).T)), 2, ec='b', fill=False, lw=1.5))
+                    #             # col.add_artist(plt.Circle(WH2*(1+puck2), 2, ec='r', fill=False, lw=1.5))
+                    #             # col.add_artist(plt.Circle(WH2*(1+team1_k2_enemy_label), 2, ec='r', fill=False, lw=1.5))
+                    #         if counter == 1 and index == 1:
+                    #             # if not exist4 or abs(puck4[0]) > 0.75:
+                    #             # if exist4 and (abs(puck4[1]) > 0.75 or abs(puck4[0]) > 0.75):
+                    #             col.imshow(t2_imgs[1])
+                    #             # col.imshow(instance4)
+                    #             col.add_artist(plt.Circle(WH2*(1+_to_image(k4['kart']['location'], np.array(k4['camera']['projection']).T, np.array(k4['camera']['view']).T)), 2, ec='b', fill=False, lw=1.5))
+                    #             # col.add_artist(plt.Circle(WH2*(1+puck4), 2, ec='r', fill=False, lw=1.5))
+                    #             # col.add_artist(plt.Circle(WH2*(1+team2_k4_enemy_label), 2, ec='r', fill=False, lw=1.5))
+                    #     counter += 1
+                    # plt.pause(1e-5)
                     # print(tensor1.shape, tensor2.shape, tensor3.shape, tensor4.shape)
                     # print(puck1, puck2, puck3, puck4)
                     # print(exist1, exist2, exist3, exist4)
@@ -206,14 +250,10 @@ class SuperTuxDataset(Dataset):
 
                     if model == 1:
                         # detector
-                        if exist1:
-                            self.data.append((image1, np.array(instance1).astype(np.float32)))
-                        if exist2:
-                            self.data.append((image2, np.array(instance2).astype(np.float32)))
-                        if exist3:
-                            self.data.append((image3, np.array(instance3).astype(np.float32)))
-                        if exist4:
-                            self.data.append((image4, np.array(instance4).astype(np.float32)))
+                        self.data.append((image1, np.array(detector_label1).astype(np.float32)))
+                        self.data.append((image2, np.array(detector_label2).astype(np.float32)))
+                        self.data.append((image3, np.array(detector_label3).astype(np.float32)))
+                        self.data.append((image4, np.array(detector_label4).astype(np.float32)))
                 except EOFError:
                     break
         self.transform = transform

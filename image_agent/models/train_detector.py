@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 
-from .detector import Detector, save_detector
+from .detector import Detector, save_detector, load_detector
 from .utils import load_data
 from . import dense_transforms
 
@@ -50,9 +50,10 @@ def train(args):
     # sending model, loss, and data to device
     print('setup complete.')
     print('loading dataset...')
-    # model = load_planner()
+    # model = load_detector()
     model = model.to(device)
     loss = loss.to(device)
+    det_loss = torch.nn.BCEWithLogitsLoss(reduction='none').to(device)
     train_data = load_data(train_path, batch_size=batch_size, num_workers=num_workers, transform=transforms, model=1)
     print('datset loaded.')
 
@@ -70,7 +71,9 @@ def train(args):
 
             # generate output, calculate loss gradient
             output = model(data)
-            loss_value = loss(torch.squeeze(output), heatmap)
+            p_det = torch.sigmoid(output * (1-2*heatmap))
+            loss_value = (det_loss(output, heatmap)*p_det).mean() / p_det.mean()
+            # loss_value = loss(output, heatmap)
             losses.append(loss_value.detach().cpu().numpy())
 
             # logging
