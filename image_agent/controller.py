@@ -6,6 +6,8 @@ frame = 0
 last_rescue = 0
 RESCUE_TIMEOUT = 30
 
+
+#PS
 def defender_control(gift_aim_point, op_kart1_aim_point=None, op_kart2_aim_point=None, curr_def_vel, def_steer_gain=3, def_target_vel=15):
     import numpy as np
     action = pystk.Action()
