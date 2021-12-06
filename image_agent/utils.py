@@ -473,4 +473,5 @@ if __name__ == '__main__':
             # Add noise after the first round
             aim_noise, vel_noise = args.aim_noise, args.vel_noise
 
+            
     pytux.close()
