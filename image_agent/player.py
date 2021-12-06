@@ -292,7 +292,7 @@ class Team:
             self.defender_starting_location = defender['location']
 
         # predicting defender_aim_point
-        # Is this the aim point for gift (pickup item)?
+        # PS: Is this the aim point for gift (pickup item)?
         defender_aim_point = self.defender_planner(tensor).detach().cpu().numpy()
         defender_aim_point = defender_aim_point[0]
 
@@ -318,7 +318,7 @@ class Team:
         steer_angle = 3 * defender_aim_point[0]
         defender_dict['steer'] = np.clip(steer_angle * 3, -1, 1)
 
-        # if the puck is far to the sides, start braking
+        # PS: if the gift is far to the sides, start braking
         if abs(defender_aim_point[0]) > 0.3:
             defender_dict['brake'] = True
             defender_dict['acceleration'] = 0.3
