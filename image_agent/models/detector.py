@@ -153,7 +153,7 @@ if __name__ == '__main__':
         #         patches.Rectangle((k[0] - 0.5, k[1] - 0.5), k[2] - k[0], k[3] - k[1], facecolor='none', edgecolor='b'))
         print(im.shape)
         detections = model.detect(im.to(device))
-        for c in range(2,3):
+        for c in range(3):
             for s, cx, cy, w, h in detections[c]:
                 print(s)
                 ax.add_patch(patches.Circle((cx, cy), radius=max(2 + s / 2, 0.1), color='rgb'[c]))

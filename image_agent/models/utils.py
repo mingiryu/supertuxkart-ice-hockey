@@ -47,14 +47,14 @@ class SuperTuxDataset(Dataset):
                     puck4 = _to_image(puck, np.array(k4['camera']['projection']).T, np.array(k4['camera']['view']).T)
 
                     # gathering enemy kart locations for all karts
-                    ek3_1 = _to_image(k3['kart']['location'], np.array(k1['camera']['projection']).T, np.array(k1['camera']['view']).T) # (x,y) in the view of k1
-                    ek4_1 = _to_image(k4['kart']['location'], np.array(k1['camera']['projection']).T, np.array(k1['camera']['view']).T) # (x,y) in the view of k1
-                    ek3_2 = _to_image(k3['kart']['location'], np.array(k2['camera']['projection']).T, np.array(k2['camera']['view']).T) # (x,y) in the view of k2
-                    ek4_2 = _to_image(k4['kart']['location'], np.array(k2['camera']['projection']).T, np.array(k2['camera']['view']).T) # (x,y) in the view of k2
-                    ek1_3 = _to_image(k1['kart']['location'], np.array(k3['camera']['projection']).T, np.array(k3['camera']['view']).T) # (x,y) in the view of k3
-                    ek2_3 = _to_image(k2['kart']['location'], np.array(k3['camera']['projection']).T, np.array(k3['camera']['view']).T) # (x,y) in the view of k3
-                    ek1_4 = _to_image(k1['kart']['location'], np.array(k4['camera']['projection']).T, np.array(k4['camera']['view']).T) # (x,y) in the view of k4
-                    ek2_4 = _to_image(k2['kart']['location'], np.array(k4['camera']['projection']).T, np.array(k4['camera']['view']).T) # (x,y) in the view of k4
+                    # ek3_1 = _to_image(k3['kart']['location'], np.array(k1['camera']['projection']).T, np.array(k1['camera']['view']).T) # (x,y) in the view of k1
+                    # ek4_1 = _to_image(k4['kart']['location'], np.array(k1['camera']['projection']).T, np.array(k1['camera']['view']).T) # (x,y) in the view of k1
+                    # ek3_2 = _to_image(k3['kart']['location'], np.array(k2['camera']['projection']).T, np.array(k2['camera']['view']).T) # (x,y) in the view of k2
+                    # ek4_2 = _to_image(k4['kart']['location'], np.array(k2['camera']['projection']).T, np.array(k2['camera']['view']).T) # (x,y) in the view of k2
+                    # ek1_3 = _to_image(k1['kart']['location'], np.array(k3['camera']['projection']).T, np.array(k3['camera']['view']).T) # (x,y) in the view of k3
+                    # ek2_3 = _to_image(k2['kart']['location'], np.array(k3['camera']['projection']).T, np.array(k3['camera']['view']).T) # (x,y) in the view of k3
+                    # ek1_4 = _to_image(k1['kart']['location'], np.array(k4['camera']['projection']).T, np.array(k4['camera']['view']).T) # (x,y) in the view of k4
+                    # ek2_4 = _to_image(k2['kart']['location'], np.array(k4['camera']['projection']).T, np.array(k4['camera']['view']).T) # (x,y) in the view of k4
 
                     # gathering enemy kart distances from puck. want to target the kart closer to the puck
                     dist1 = np.linalg.norm(np.array(k1['kart']['location']) - np.array(puck))

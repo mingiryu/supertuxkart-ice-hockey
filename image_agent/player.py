@@ -37,6 +37,7 @@ class Team:
         self.memory_limit = 5
         self.puck_thresh = 0.2
         self.reset_counter = 0
+        self.possession_time = 0
 
         ####################
         #   Debug Params   #
@@ -97,36 +98,16 @@ class Team:
             self.defender_backup_counter = counter
             self.defender_backup_angle = angle
 
-    def _in_poss_of_puck(self, next_aim_point, kart_loc):
+    def _in_poss_of_puck(self, score):
         """
         Checks the average puck locations stored in memory. If average is below some threshold, return true else false
         :return: Return true if the average of the puck locations in memory is below some threshold
         """
-        puck_x = []
-        puck_y = []
-        avg_x = 1
-        avg_y = 1
-
-        dists = []
-        # calculate dists between next_aim_point and those in memory
-        if len(self.attacker_memory) == self.memory_limit:
-            for pos in self.attacker_memory:
-                puck_x.append(pos[0])
-                puck_y.append(pos[1])
-                dists.append(np.linalg.norm(np.array(next_aim_point) - np.array(pos)))
+        if score >= 12:
+            self.possession_time += 1
+            return True
         else:
-            return False
-
-        # get average puck x and y's
-        avg_x = np.mean(np.array(puck_x))
-        avg_y = np.mean(np.array(puck_y))
-        # if dist < another threshold, ie very close, we are in possession
-        if np.linalg.norm(np.array([avg_x, avg_y]) - kart_loc) <= 0.25:
-            # if avg_dist < threshold, check avg puck_x and avg puck_y dist from kart
-            avg_dist = np.mean(np.array(dists))
-            print("AVG DISTS:", avg_dist)
-            return avg_dist <= self.puck_thresh
-        else:
+            self.possession_time = 0
             return False
 
     def new_match(self, team: int, num_players: int) -> list:
@@ -210,6 +191,7 @@ class Team:
                 if len(cls) > 0:
                     s, cx, cy, w, h = cls[0]
                     score = s
+                    # normalizing to (-1, 1)
                     center_x = float((cx) / 200) - 1
                     center_y = float((cy) / 150) - 1
                     attacker_aim_point = np.array([center_x, center_y])
@@ -229,10 +211,20 @@ class Team:
 
         # if in possession of the puck, ignore attacker_aim_point
         # instead, start driving to goal
-        # if self._in_poss_of_puck(attacker_aim_point, attacker_loc_2d):
-        #     print("IN POSSESSION OF THE PUCK!")
-        #     self.target_velocity = 10
-        #     attacker_aim_point = self._to_image(self.goal, np.array(attacker_cam['projection']).T, np.array(attacker_cam['view']).T)
+        if self._in_poss_of_puck(score):
+            print("IN POSSESSION OF THE PUCK!")
+            if self.possession_time > 5:
+                # is the goal ahead?
+                if abs(attacker['location'][2]) <= abs(self.goal[2]) and abs(attacker['front'][2]) > abs(attacker['location'][2]) and abs(attacker['front'][0]) - abs(attacker['location'][0]) <= 0.5:
+                    print("HEADING TO GOAL")
+                    goal_point = self._to_image(self.goal, np.array(attacker_cam['projection']).T, np.array(attacker_cam['view']).T)
+                    d = np.linalg.norm(np.array(attacker_aim_point[0]) - np.array(goal_point[0]))
+                    gain = 0.25
+                    angle_of_attack = np.sign(attacker['location'][2]) * np.sign(attacker['location'][0]) * np.sign(self.goal[2]) * -1
+                    attacker_aim_point[0] += d * gain * angle_of_attack
+                    print(goal_point, attacker_aim_point, angle_of_attack)
+
+                # TODO: goal not ahead, start to turn
 
         # off the ground? then we're tumbling
         if attacker['location'][1] > 0.4:
@@ -250,6 +242,7 @@ class Team:
         attacker_dict['steer'] = np.clip(steer_angle * 3, -1, 1)
 
         # did not detect a puck, turn in a circle till we find it
+        # TODO: improve turning based on area of the map. use 0,0,0 as anchor?
         if attacker_aim_point[0] == 0.0 and attacker_aim_point[1] == 0.0 and self.frame - self.reset_counter > self.backup_timeout:
             attacker_dict['steer'] = 0.8
 
@@ -277,7 +270,6 @@ class Team:
                     # top right or bottom left -> backup to right
                     angle = 1.0
                 self._backup(15, angle, self.frame, 0)
-
 
             # might be stuck near wall. try backing up
             if attacker_vel < 1.0:
@@ -389,15 +381,14 @@ class Team:
 
         # debug logging
         # print("ATTACKER AIM POINT", attacker_aim_point, np.array([400, 300]) / 2)
-        # for index, row in enumerate(self.ax):
-        #     row.clear()
-        #     if index == 0:
-        #         row.imshow(Image.fromarray(player_image[0]))
-        #         WH2 = np.array([400, 300]) / 2
-        #         row.add_artist(plt.Circle(WH2*(1+np.array(attacker_loc_2d)), 2, ec='b', fill=False, lw=1.5))
-        #         row.add_artist(plt.Circle(WH2*(1+np.array(self._to_image(self.goal, np.array(attacker_cam['projection']).T, np.array(attacker_cam['view']).T))), 2, ec='y', fill=False, lw=1.5))
-        #         row.add_artist(plt.Circle(WH2*(1+attacker_aim_point), 2, ec='r', fill=False, lw=1.5))
-                # row.add_artist(plt.Circle(attacker_aim_point, 2, ec='r', fill=False, lw=1.5))
+        for index, row in enumerate(self.ax):
+            row.clear()
+            if index == 0:
+                row.imshow(Image.fromarray(player_image[0]))
+                WH2 = np.array([400, 300]) / 2
+                row.add_artist(plt.Circle(WH2*(1+np.array(attacker_loc_2d)), 2, ec='b', fill=False, lw=1.5))
+                row.add_artist(plt.Circle(WH2*(1+np.array(self._to_image(self.goal, np.array(attacker_cam['projection']).T, np.array(attacker_cam['view']).T))), 2, ec='y', fill=False, lw=1.5))
+                row.add_artist(plt.Circle(WH2*(1+attacker_aim_point), 2, ec='r', fill=False, lw=1.5))
         #     if index == 1:
         #         row.imshow(Image.fromarray(player_image[1]))
         #         # col.imshow(self.k.render_data[0].instance)
