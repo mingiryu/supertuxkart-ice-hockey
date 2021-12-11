@@ -109,7 +109,7 @@ class Detector(torch.nn.Module):
         """
         cls = self.forward(image[None])
         return [[(s, x, y, 0, 0)
-                 for s, x, y in extract_peak(c, max_det=5, **kwargs)] for c in cls[0]]
+                 for s, x, y in extract_peak(c, max_det=100, **kwargs)] for c in cls[0]]
 
 
 def save_detector(model):
