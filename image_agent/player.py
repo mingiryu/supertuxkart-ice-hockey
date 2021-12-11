@@ -185,18 +185,18 @@ class Team:
             if abs(aim_point[0]) > 0.85:
 
                 # if aim_point[1] <= 0.5:
-                print("PASSED PUCK BACKUP", id)
+                # print("PASSED PUCK BACKUP", id)
                 score = 0.0
                 self._backup(30, -1 * dict['steer'], self.frame, id)
             if aim_point[1] > 0.3:
-                print("PUCK > 0.3 BACKUP")
+                # print("PUCK > 0.3 BACKUP")
                 score = 0.0
                 self._backup(30, -1 * dict['steer'], self.frame, id)
 
             # heading into a goal... don't do that
             # second check is checking that front-z value > location-z value. ie, kart is heading into goal
             if abs(kart['location'][2]) >= abs(self.goal[2]) and abs(kart['front'][2]) > abs(kart['location'][2]):
-                print("GOAL BACKUP", id)
+                # print("GOAL BACKUP", id)
                 angle = 0.0
                 if (kart['location'][0] < 0.0 and kart['location'][2] < 0.0) or (kart['location'][0] > 0.0 and kart['location'][2] > 0.0):
                     # print("GOAL BACKUP")
@@ -210,7 +210,7 @@ class Team:
 
             # might be stuck near wall. try backing up
             if vel < 1.0:
-                print("STUCK BACKUP", id)
+                # print("STUCK BACKUP", id)
                 self._backup(15, -1 * dict['steer'], self.frame, id)
 
         # perform backup
@@ -341,9 +341,7 @@ class Team:
                     # add attacker_aim_point to memory
                     if len(self.memory[0]) == self.memory_limit:
                         self.memory[0].pop(0)
-                        self.memory[0].append((score, attacker_aim_point))
-                    else:
-                        self.memory[0].append((score, attacker_aim_point))
+                    self.memory[0].append((score, attacker_aim_point))
             elif self.lost_counter[0] <= 15:
                 self.lost_counter[0] += 1
                 # check our memory for the last puck location
@@ -353,6 +351,7 @@ class Team:
                     attacker_aim_point = ap
 
         # print("DEF LOC MEM:", self.defender_location_mem)
+        print(self.lost_counter[0], attacker_aim_point)
         if score == 0.0 and attacker_aim_point[0] == 0.0 and attacker_aim_point[1] == 0.0 and len(self.memory[0]) == 0 and self.defender_location_mem != None:
             # check our defender's memory
             def_loc, def_front = self.defender_location_mem
@@ -472,7 +471,7 @@ class Team:
                     puck_loc = np.array([center_x, center_y])
                     # if defender['powerup']['type'] > 0 and not attacker_in_poss:
                     defender_aim_point = puck_loc
-
+        # print("DEFENDER AIM POINT FOR ENEMY:", defender_aim_point)
         ### priority 2: shoot puck with items if available ###
         if self.defender_target != 1:
             for c in range(2,3):
@@ -501,7 +500,7 @@ class Team:
                         score = 0.0
                         _, ap = self.memory[1][-1]
                         defender_aim_point = ap
-
+        # print("DEFENDER AIM POINT FOR PUCK:", defender_aim_point)
 
         ### priority 3: pickup item ###
         if self.lost_counter[0] < 30:
@@ -599,12 +598,12 @@ class Team:
         #         row.add_artist(plt.Circle(WH2*(1+np.array(attacker_loc_2d)), 2, ec='b', fill=False, lw=1.5))
         #         row.add_artist(plt.Circle(WH2*(1+np.array(self._to_image(self.goal, np.array(attacker_cam['projection']).T, np.array(attacker_cam['view']).T))), 2, ec='y', fill=False, lw=1.5))
         #         row.add_artist(plt.Circle(WH2*(1+attacker_aim_point), 2, ec='r', fill=False, lw=1.5))
-        #     if index == 1:
-        #         row.imshow(Image.fromarray(player_image[1]))
-        #         WH2 = np.array([400, 300]) / 2
-        #         row.add_artist(plt.Circle(WH2*(1+np.array(defender_loc_2d)), 2, ec='b', fill=False, lw=1.5))
-        #         row.add_artist(plt.Circle(WH2*(1+np.array(self._to_image(self.goal, np.array(defender_cam['projection']).T, np.array(defender_cam['view']).T))), 2, ec='y', fill=False, lw=1.5))
-        #         row.add_artist(plt.Circle(WH2*(1+defender_aim_point), 2, ec='r', fill=False, lw=1.5))
+            # if index == 1:
+            #     row.imshow(Image.fromarray(player_image[1]))
+            #     WH2 = np.array([400, 300]) / 2
+            #     row.add_artist(plt.Circle(WH2*(1+np.array(defender_loc_2d)), 2, ec='b', fill=False, lw=1.5))
+            #     row.add_artist(plt.Circle(WH2*(1+np.array(self._to_image(self.goal, np.array(defender_cam['projection']).T, np.array(defender_cam['view']).T))), 2, ec='y', fill=False, lw=1.5))
+            #     row.add_artist(plt.Circle(WH2*(1+defender_aim_point), 2, ec='r', fill=False, lw=1.5))
         # plt.pause(1e-3)
 
         self.frame += 1
