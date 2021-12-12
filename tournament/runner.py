@@ -4,8 +4,6 @@ from collections import namedtuple
 
 TRACK_NAME = 'icy_soccer_field'
 MAX_FRAMES = 1000
-TIMEOUT_SLACK = 2   # seconds
-TIMEOUT_STEP = 0.1  # seconds
 
 RunnerInfo = namedtuple('RunnerInfo', ['agent_type', 'error', 'total_act_time'])
 
@@ -51,24 +49,31 @@ class TeamRunner:
     _error = None
     _total_act_time = 0
 
-    def __init__(self, agent_dir):
+    def __init__(self, team_or_dir):
+        from pathlib import Path
         try:
-            import grader
+            from grader import grader
         except ImportError:
-            from . import grader
+            try:
+                from . import grader
+            except ImportError:
+                import grader
 
         self._error = None
-
+        self._team = None
         try:
-            assignment = grader.load_assignment(agent_dir)
-            if assignment is None:
-                self._error = 'Failed to load submission.'
+            if isinstance(team_or_dir, (str, Path)):
+                assignment = grader.load_assignment(team_or_dir)
+                if assignment is None:
+                    self._error = 'Failed to load submission.'
+                else:
+                    self._team = assignment.Team()
             else:
-                self._team = assignment.Team()
+                self._team = team_or_dir
         except Exception as e:
-            print("ERROR:", e)
             self._error = 'Failed to load submission: {}'.format(str(e))
-        self.agent_type = self._team.agent_type
+        if hasattr(self, '_team') and self._team is not None:
+            self.agent_type = self._team.agent_type
 
     def new_match(self, team: int, num_players: int) -> list:
         self._total_act_time = 0
@@ -79,6 +84,7 @@ class TeamRunner:
                 return r
             self._error = 'new_match needs to return kart names as a str, list, or None. Got {!r}!'.format(r)
         except Exception as e:
+            print("ERROR:", e)
             self._error = 'Failed to start new_match: {}'.format(str(e))
         return []
 
@@ -88,6 +94,7 @@ class TeamRunner:
         try:
             r = self._team.act(player_state, *args, **kwargs)
         except Exception as e:
+            print("ERROR:", e)
             self._error = 'Failed to act: {}'.format(str(e))
         else:
             self._total_act_time += time()-t0
@@ -145,34 +152,25 @@ class Match:
 
     @staticmethod
     def _g(f):
-        # print('_g', f)
+        from .remote import ray
+        if ray is not None and isinstance(f, (ray.types.ObjectRef, ray._raylet.ObjectRef)):
+            return ray.get(f)
         return f
 
-    def _check(self, team1, team2, where, n_iter, timeout_slack, timeout_step):
+    def _check(self, team1, team2, where, n_iter, timeout):
         _, error, t1 = self._g(self._r(team1.info)())
         if error:
             raise MatchException([0, 3], 'other team crashed', 'crash during {}: {}'.format(where, error))
 
         _, error, t2 = self._g(self._r(team2.info)())
         if error:
-            print("ERROR:", error)
             raise MatchException([3, 0], 'crash during {}: {}'.format(where, error), 'other team crashed')
 
-        logging.debug('timeout {} <? {} {}'.format(timeout_slack + n_iter * timeout_step, t1, t2))
+        logging.debug('timeout {} <? {} {}'.format(timeout, t1, t2))
+        return t1 < timeout, t2 < timeout
 
-        if max(t1, t2) > timeout_slack + n_iter * timeout_step:
-            if t1 > t2:
-                # Team 2 wins because of a timeout
-                return [0, 3], 'Timeout ({:.4f}/iter > {:.4f}/iter)'.format(t1 / n_iter, timeout_step),\
-                       'other team timed out'
-            else:
-                # Team 1 wins because of a timeout
-                return [3, 0], 'other team timed out',\
-                       'Timeout ({:.4f}/iter > {:.4f}/iter)'.format(t2 / n_iter, timeout_step)
-
-    def run(self, team1, team2, num_player=1, max_frames=MAX_FRAMES, max_score=3, record_fn=None,
-            timeout_slack=TIMEOUT_SLACK, timeout_step=TIMEOUT_STEP, initial_ball_location=[0, 0],
-            initial_ball_velocity=[0, 0]):
+    def run(self, team1, team2, num_player=1, max_frames=MAX_FRAMES, max_score=3, record_fn=None, timeout=1e10,
+            initial_ball_location=[0, 0], initial_ball_velocity=[0, 0], verbose=False):
         RaceConfig = self._pystk.RaceConfig
 
         logging.info('Creating teams')
@@ -181,14 +179,14 @@ class Match:
         t1_cars = self._g(self._r(team1.new_match)(0, num_player)) or ['tux']
         t2_cars = self._g(self._r(team2.new_match)(1, num_player)) or ['tux']
 
-        t1_type, *_ = self._g(self._r(team1.info()))
-        t2_type, *_ = self._g(self._r(team2.info()))
+        t1_type, *_ = self._g(self._r(team1.info)())
+        t2_type, *_ = self._g(self._r(team2.info)())
 
         if t1_type == 'image' or t2_type == 'image':
             assert self._use_graphics, 'Need to use_graphics for image agents.'
 
         # Deal with crashes
-        self._check(team1, team2, 'new_match', 0, timeout_slack, timeout_step)
+        t1_can_act, t2_can_act = self._check(team1, team2, 'new_match', 0, timeout)
 
         # Setup the race config
         logging.info('Setting up race')
@@ -219,29 +217,34 @@ class Match:
             team2_state = [to_native(p) for p in state.players[1::2]]
             soccer_state = to_native(state.soccer)
             team1_images = team2_images = None
-            team1_instances = team2_instances = None
             if self._use_graphics:
                 team1_images = [np.array(race.render_data[i].image) for i in range(0, len(race.render_data), 2)]
                 team2_images = [np.array(race.render_data[i].image) for i in range(1, len(race.render_data), 2)]
-                team1_instances = [np.array(race.render_data[i].instance >> self._pystk.object_type_shift) for i in range(0, len(race.render_data), 2)]
-                team2_instances = [np.array(race.render_data[i].instance >> self._pystk.object_type_shift) for i in range(1, len(race.render_data), 2)]
 
             # Have each team produce actions (in parallel)
-            if t1_type == 'image':
-                team1_actions_delayed = self._r(team1.act)(team1_state, team1_images)
-            else:
-                team1_actions_delayed = self._r(team1.act)(team1_state, team2_state, soccer_state)
+            if t1_can_act:
+                if t1_type == 'image':
+                    team1_actions_delayed = self._r(team1.act)(team1_state, team1_images)
+                else:
+                    team1_actions_delayed = self._r(team1.act)(team1_state, team2_state, soccer_state)
 
-            if t2_type == 'image':
-                team2_actions_delayed = self._r(team2.act)(team2_state, team2_images)
-            else:
-                team2_actions_delayed = self._r(team2.act)(team2_state, team1_state, soccer_state)
+            if t2_can_act:
+                if t2_type == 'image':
+                    team2_actions_delayed = self._r(team2.act)(team2_state, team2_images)
+                else:
+                    team2_actions_delayed = self._r(team2.act)(team2_state, team1_state, soccer_state)
 
             # Wait for the actions to finish
-            team1_actions = self._g(team1_actions_delayed)
-            team2_actions = self._g(team2_actions_delayed)
+            team1_actions = self._g(team1_actions_delayed) if t1_can_act else None
+            team2_actions = self._g(team2_actions_delayed) if t2_can_act else None
 
-            self._check(team1, team2, 'act', it, timeout_slack, timeout_step)
+            new_t1_can_act, new_t2_can_act = self._check(team1, team2, 'act', it, timeout)
+            if not new_t1_can_act and t1_can_act and verbose:
+                print('Team 1 timed out')
+            if not new_t2_can_act and t2_can_act and verbose:
+                print('Team 2 timed out')
+
+            t1_can_act, t2_can_act = new_t1_can_act, new_t2_can_act
 
             # Assemble the actions
             actions = []
@@ -253,8 +256,7 @@ class Match:
 
             if record_fn:
                 self._r(record_fn)(team1_state, team2_state, soccer_state=soccer_state, actions=actions,
-                                   team1_images=team1_images, team2_images=team2_images,
-                                   team1_instances=team1_instances, team2_instances=team2_instances)
+                                   team1_images=team1_images, team2_images=team2_images)
 
             logging.debug('  race.step  [score = {}]'.format(state.soccer.score))
             if (not race.step([self._pystk.Action(**a) for a in actions]) and num_player) or sum(state.soccer.score) >= max_score:
@@ -278,7 +280,7 @@ if __name__ == '__main__':
     parser = ArgumentParser(description="Play some Ice Hockey. List any number of players, odd players are in team 1, even players team 2.")
     parser.add_argument('-r', '--record_video', help="Do you want to record a video?")
     parser.add_argument('-s', '--record_state', help="Do you want to pickle the state?")
-    parser.add_argument('-f', '--num_frames', default=1000, type=int, help="How many steps should we play for?")
+    parser.add_argument('-f', '--num_frames', default=1200, type=int, help="How many steps should we play for?")
     parser.add_argument('-p', '--num_players', default=2, type=int, help="Number of players per team")
     parser.add_argument('-m', '--max_score', default=3, type=int, help="How many goal should we play to?")
     parser.add_argument('-j', '--parallel', type=int, help="How many parallel process to use?")
@@ -301,16 +303,15 @@ if __name__ == '__main__':
             recorder = recorder & utils.VideoRecorder(args.record_video)
 
         if args.record_state:
-            recorder = recorder & utils.StateRecorder(args.record_state, True)
+            recorder = recorder & utils.StateRecorder(args.record_state)
 
         # Start the match
-        match = Match(use_graphics=True)
+        match = Match(use_graphics=team1.agent_type == 'image' or team2.agent_type == 'image')
         try:
             result = match.run(team1, team2, args.num_players, args.num_frames, max_score=args.max_score,
                                initial_ball_location=args.ball_location, initial_ball_velocity=args.ball_velocity,
                                record_fn=recorder)
         except MatchException as e:
-            print("ERROR:", e)
             print('Match failed', e.score)
             print(' T1:', e.msg1)
             print(' T2:', e.msg2)
@@ -325,6 +326,8 @@ if __name__ == '__main__':
         # Create the teams
         team1 = AIRunner() if args.team1 == 'AI' else remote.RayTeamRunner.remote(args.team1)
         team2 = AIRunner() if args.team2 == 'AI' else remote.RayTeamRunner.remote(args.team2)
+        team1_type, *_ = team1.info() if args.team1 == 'AI' else remote.get(team1.info.remote())
+        team2_type, *_ = team2.info() if args.team2 == 'AI' else remote.get(team2.info.remote())
 
         # What should we record?
         assert args.record_state is None or args.record_video is None, "Cannot record both video and state in parallel mode"
@@ -341,7 +344,7 @@ if __name__ == '__main__':
                 recorder = remote.RayStateRecorder.remote(args.record_state.replace(ext, f'.{i}{ext}'))
 
             match = remote.RayMatch.remote(logging_level=getattr(logging, environ.get('LOGLEVEL', 'WARNING').upper()),
-                                           use_graphics=team1.agent_type == 'image' or team2.agent_type == 'image')
+                                           use_graphics=team1_type == 'image' or team2_type == 'image')
             result = match.run.remote(team1, team2, args.num_players, args.num_frames, max_score=args.max_score,
                                       initial_ball_location=args.ball_location,
                                       initial_ball_velocity=args.ball_velocity,
