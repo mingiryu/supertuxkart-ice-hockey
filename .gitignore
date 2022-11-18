@@ -142,7 +142,6 @@ cython_debug/
 
 # Training data
 data.pkl
-.vscode
 
 # Recording
 *.mp4
