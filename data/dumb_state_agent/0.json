@@ -1,0 +1,619 @@
+{
+    "player_state": [
+        {
+            "camera": {
+                "Mode": {
+                    "CLOSEUP": 1,
+                    "FALLING": 4,
+                    "LEADER_MODE": 3,
+                    "NORMAL": 0,
+                    "REVERSE": 2,
+                    "name": null,
+                    "value": null
+                },
+                "aspect": 1.0,
+                "fov": 1.3962633609771729,
+                "mode": 0,
+                "projection": [
+                    [
+                        1.191753625869751,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        1.191753625869751,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        1.001001000404358,
+                        1.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        -1.001001000404358,
+                        0.0
+                    ]
+                ],
+                "view": [
+                    [
+                        1.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        1.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        1.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        1.0
+                    ]
+                ]
+            },
+            "kart": {
+                "attachment": {
+                    "Type": {
+                        "ANVIL": 1,
+                        "BOMB": 2,
+                        "BUBBLEGUM_SHIELD": 6,
+                        "NOTHING": 9,
+                        "PARACHUTE": 0,
+                        "SWATTER": 3,
+                        "name": null,
+                        "value": null
+                    },
+                    "time_left": 0.0,
+                    "type": 9
+                },
+                "distance_down_track": 0.0,
+                "finish_time": 0.0,
+                "finished_laps": 0,
+                "front": [
+                    -6.53972053527832,
+                    0.3009110391139984,
+                    54.34914779663086
+                ],
+                "id": 1,
+                "jumping": false,
+                "lap_time": 0.0,
+                "lives": 0,
+                "location": [
+                    -6.53972053527832,
+                    0.3009110391139984,
+                    55.06764602661133
+                ],
+                "max_steer_angle": 0.4247603416442871,
+                "name": "Tux",
+                "overall_distance": 0.0,
+                "player_id": 1,
+                "powerup": {
+                    "Type": {
+                        "ANVIL": 10,
+                        "BOWLING": 3,
+                        "BUBBLEGUM": 1,
+                        "CAKE": 2,
+                        "NOTHING": 0,
+                        "PARACHUTE": 9,
+                        "PLUNGER": 5,
+                        "RUBBERBALL": 8,
+                        "SWATTER": 7,
+                        "SWITCH": 6,
+                        "ZIPPER": 4,
+                        "name": null,
+                        "value": null
+                    },
+                    "num": 0,
+                    "type": 0
+                },
+                "race_result": false,
+                "rotation": [
+                    -1.0880949474767476e-08,
+                    1.0,
+                    2.0372643572130755e-09,
+                    -4.371138828673793e-08
+                ],
+                "shield_time": 0.0,
+                "size": [
+                    0.8209999799728394,
+                    0.675000011920929,
+                    1.437000036239624
+                ],
+                "velocity": [
+                    -5.8321725227017396e-09,
+                    0.08624196797609329,
+                    2.7930491697247817e-08
+                ],
+                "wheel_base": 1.0084210634231567
+            }
+        },
+        {
+            "camera": {
+                "Mode": {
+                    "CLOSEUP": 1,
+                    "FALLING": 4,
+                    "LEADER_MODE": 3,
+                    "NORMAL": 0,
+                    "REVERSE": 2,
+                    "name": null,
+                    "value": null
+                },
+                "aspect": 1.0,
+                "fov": 1.3962633609771729,
+                "mode": 0,
+                "projection": [
+                    [
+                        1.191753625869751,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        1.191753625869751,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        1.001001000404358,
+                        1.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        -1.001001000404358,
+                        0.0
+                    ]
+                ],
+                "view": [
+                    [
+                        1.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        1.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        1.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        1.0
+                    ]
+                ]
+            },
+            "kart": {
+                "attachment": {
+                    "Type": {
+                        "ANVIL": 1,
+                        "BOMB": 2,
+                        "BUBBLEGUM_SHIELD": 6,
+                        "NOTHING": 9,
+                        "PARACHUTE": 0,
+                        "SWATTER": 3,
+                        "name": null,
+                        "value": null
+                    },
+                    "time_left": 0.0,
+                    "type": 9
+                },
+                "distance_down_track": 0.0,
+                "finish_time": 0.0,
+                "finished_laps": 0,
+                "front": [
+                    -0.049997925758361816,
+                    0.3009110391139984,
+                    51.45927047729492
+                ],
+                "id": 3,
+                "jumping": false,
+                "lap_time": 0.0,
+                "lives": 0,
+                "location": [
+                    -0.04999786242842674,
+                    0.3009110391139984,
+                    52.17776870727539
+                ],
+                "max_steer_angle": 0.4247603416442871,
+                "name": "Tux",
+                "overall_distance": 0.0,
+                "player_id": 3,
+                "powerup": {
+                    "Type": {
+                        "ANVIL": 10,
+                        "BOWLING": 3,
+                        "BUBBLEGUM": 1,
+                        "CAKE": 2,
+                        "NOTHING": 0,
+                        "PARACHUTE": 9,
+                        "PLUNGER": 5,
+                        "RUBBERBALL": 8,
+                        "SWATTER": 7,
+                        "SWITCH": 6,
+                        "ZIPPER": 4,
+                        "name": null,
+                        "value": null
+                    },
+                    "num": 0,
+                    "type": 0
+                },
+                "race_result": false,
+                "rotation": [
+                    3.3372387076013865e-09,
+                    1.0,
+                    8.292659003927838e-09,
+                    -4.371138828673793e-08
+                ],
+                "shield_time": 0.0,
+                "size": [
+                    0.8209999799728394,
+                    0.675000011920929,
+                    1.437000036239624
+                ],
+                "velocity": [
+                    -7.327518591893067e-10,
+                    0.08624196797609329,
+                    9.085882268777823e-09
+                ],
+                "wheel_base": 1.0084210634231567
+            }
+        }
+    ],
+    "opponent_state": [
+        {
+            "camera": {
+                "Mode": {
+                    "CLOSEUP": 1,
+                    "FALLING": 4,
+                    "LEADER_MODE": 3,
+                    "NORMAL": 0,
+                    "REVERSE": 2,
+                    "name": null,
+                    "value": null
+                },
+                "aspect": 1.0,
+                "fov": 1.3962633609771729,
+                "mode": 0,
+                "projection": [
+                    [
+                        1.191753625869751,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        1.191753625869751,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        1.001001000404358,
+                        1.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        -1.001001000404358,
+                        0.0
+                    ]
+                ],
+                "view": [
+                    [
+                        1.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        1.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        1.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        1.0
+                    ]
+                ]
+            },
+            "kart": {
+                "attachment": {
+                    "Type": {
+                        "ANVIL": 1,
+                        "BOMB": 2,
+                        "BUBBLEGUM_SHIELD": 6,
+                        "NOTHING": 9,
+                        "PARACHUTE": 0,
+                        "SWATTER": 3,
+                        "name": null,
+                        "value": null
+                    },
+                    "time_left": 0.0,
+                    "type": 9
+                },
+                "distance_down_track": 0.0,
+                "finish_time": 0.0,
+                "finished_laps": 0,
+                "front": [
+                    -6.746873378753662,
+                    0.3001880645751953,
+                    -55.26637268066406
+                ],
+                "id": 0,
+                "jumping": false,
+                "lap_time": 0.0,
+                "lives": 0,
+                "location": [
+                    -6.743585109710693,
+                    0.3001880943775177,
+                    -55.98486328125
+                ],
+                "max_steer_angle": 0.38567444682121277,
+                "name": "Tux",
+                "overall_distance": 0.0,
+                "player_id": 0,
+                "powerup": {
+                    "Type": {
+                        "ANVIL": 10,
+                        "BOWLING": 3,
+                        "BUBBLEGUM": 1,
+                        "CAKE": 2,
+                        "NOTHING": 0,
+                        "PARACHUTE": 9,
+                        "PLUNGER": 5,
+                        "RUBBERBALL": 8,
+                        "SWATTER": 7,
+                        "SWITCH": 6,
+                        "ZIPPER": 4,
+                        "name": null,
+                        "value": null
+                    },
+                    "num": 0,
+                    "type": 0
+                },
+                "race_result": false,
+                "rotation": [
+                    1.2485083189517354e-08,
+                    -0.00228836084716022,
+                    -2.8994178169483575e-09,
+                    0.9999973773956299
+                ],
+                "shield_time": 0.0,
+                "size": [
+                    0.8209999799728394,
+                    0.675000011920929,
+                    1.437000036239624
+                ],
+                "velocity": [
+                    -0.12852102518081665,
+                    0.06304188072681427,
+                    1.3753087520599365
+                ],
+                "wheel_base": 1.0084210634231567
+            }
+        },
+        {
+            "camera": {
+                "Mode": {
+                    "CLOSEUP": 1,
+                    "FALLING": 4,
+                    "LEADER_MODE": 3,
+                    "NORMAL": 0,
+                    "REVERSE": 2,
+                    "name": null,
+                    "value": null
+                },
+                "aspect": 1.0,
+                "fov": 1.3962633609771729,
+                "mode": 0,
+                "projection": [
+                    [
+                        1.191753625869751,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        1.191753625869751,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        1.001001000404358,
+                        1.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        -1.001001000404358,
+                        0.0
+                    ]
+                ],
+                "view": [
+                    [
+                        1.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        1.0,
+                        0.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        1.0,
+                        0.0
+                    ],
+                    [
+                        0.0,
+                        0.0,
+                        0.0,
+                        1.0
+                    ]
+                ]
+            },
+            "kart": {
+                "attachment": {
+                    "Type": {
+                        "ANVIL": 1,
+                        "BOMB": 2,
+                        "BUBBLEGUM_SHIELD": 6,
+                        "NOTHING": 9,
+                        "PARACHUTE": 0,
+                        "SWATTER": 3,
+                        "name": null,
+                        "value": null
+                    },
+                    "time_left": 0.0,
+                    "type": 9
+                },
+                "distance_down_track": 0.0,
+                "finish_time": 0.0,
+                "finished_laps": 0,
+                "front": [
+                    -0.009988445788621902,
+                    0.30018138885498047,
+                    -52.28596878051758
+                ],
+                "id": 2,
+                "jumping": false,
+                "lap_time": 0.0,
+                "lives": 0,
+                "location": [
+                    -0.009993365965783596,
+                    0.30018141865730286,
+                    -53.00446701049805
+                ],
+                "max_steer_angle": 0.3852713108062744,
+                "name": "Tux",
+                "overall_distance": 0.0,
+                "player_id": 2,
+                "powerup": {
+                    "Type": {
+                        "ANVIL": 10,
+                        "BOWLING": 3,
+                        "BUBBLEGUM": 1,
+                        "CAKE": 2,
+                        "NOTHING": 0,
+                        "PARACHUTE": 9,
+                        "PLUNGER": 5,
+                        "RUBBERBALL": 8,
+                        "SWATTER": 7,
+                        "SWITCH": 6,
+                        "ZIPPER": 4,
+                        "name": null,
+                        "value": null
+                    },
+                    "num": 0,
+                    "type": 0
+                },
+                "race_result": false,
+                "rotation": [
+                    1.2045111574821021e-08,
+                    3.42410407938587e-06,
+                    1.5522931828826358e-09,
+                    1.0
+                ],
+                "shield_time": 0.0,
+                "size": [
+                    0.8209999799728394,
+                    0.675000011920929,
+                    1.437000036239624
+                ],
+                "velocity": [
+                    0.00017720212053973228,
+                    0.06273909658193588,
+                    1.3961293697357178
+                ],
+                "wheel_base": 1.0084210634231567
+            }
+        }
+    ],
+    "soccer_state": {
+        "ball": {
+            "id": 134217729,
+            "location": [
+                0.0,
+                1.0,
+                0.0
+            ],
+            "size": 2.527893304824829
+        },
+        "goal_line": [
+            [
+                [
+                    -10.449999809265137,
+                    0.07000000029802322,
+                    -64.5
+                ],
+                [
+                    10.449999809265137,
+                    0.07000000029802322,
+                    -64.5
+                ]
+            ],
+            [
+                [
+                    10.460000038146973,
+                    0.07000000029802322,
+                    64.5
+                ],
+                [
+                    -10.510000228881836,
+                    0.07000000029802322,
+                    64.5
+                ]
+            ]
+        ],
+        "score": [
+            0,
+            0
+        ]
+    }
+}

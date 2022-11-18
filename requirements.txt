@@ -6,3 +6,7 @@ tensorboard>=1.14
 torch>=1.6.0
 torchvision>=0.7.0
 PySuperTuxKart
+
+# For recording
+imageio
+imageio-ffmpeg
